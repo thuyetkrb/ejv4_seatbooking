@@ -33,7 +33,7 @@ export default function App() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [loginData, setLoginData] = useState({ userId: '', ntid: '' });
+  const [loginData, setLoginData] = useState({ userId: '', password: '' });
   const [showLogin, setShowLogin] = useState(false);
 
   const isAdmin = currentUser?.role === 'admin';
@@ -52,11 +52,15 @@ export default function App() {
       setLogs(dataService.getLogs());
       
       const savedUser = localStorage.getItem('currentUser');
-      if (savedUser) {
+      const savedPass = localStorage.getItem('currentPass');
+      if (savedUser && savedPass) {
         try {
           const parsed = JSON.parse(savedUser);
           const found = config.users.find((u: User) => u.userId === parsed.userId);
-          if (found) setCurrentUser(found);
+          if (found) {
+            setCurrentUser(found);
+            setLoginData({ userId: found.userId, password: savedPass });
+          }
         } catch (e) {
           console.error("Failed to parse saved user", e);
         }
@@ -69,19 +73,21 @@ export default function App() {
 
   const handleLogin = () => {
     const user = users.find(u => u.userId === loginData.userId);
-    if (user && loginData.ntid.trim() !== '') {
+    if (user && loginData.password.trim() !== '') {
       setCurrentUser(user);
       localStorage.setItem('currentUser', JSON.stringify(user));
+      localStorage.setItem('currentPass', loginData.password);
       setShowLogin(false);
-      setLoginData({ userId: '', ntid: '' });
     } else {
-      alert('Invalid User or NTID');
+      alert('Invalid User or Password');
     }
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
     localStorage.removeItem('currentUser');
+    localStorage.removeItem('currentPass');
+    setLoginData({ userId: '', password: '' });
   };
 
   const handleSaveAttendance = (userId: string, date: Date, mode: WorkingMode, seatCode?: string, note?: string) => {
@@ -132,11 +138,11 @@ export default function App() {
         <div className="max-w-[1600px] mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-200 relative overflow-hidden group">
-              <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <span className="text-[8px] font-black">EJV4</span>
+              <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-50" />
+              <MapPin size={22} className="relative z-10" />
+              <div className="absolute bottom-0 left-0 right-0 bg-black/40 backdrop-blur-[2px] py-0.5 flex items-center justify-center">
+                <span className="text-[7px] font-black tracking-tighter text-white">EJV4</span>
               </div>
-              <MapPin size={22} />
-              <div className="absolute -bottom-1 -right-1 bg-white text-emerald-600 text-[8px] font-black px-1 rounded-tl-md border border-emerald-100">EJV4</div>
             </div>
             <div>
               <h1 className="font-bold text-lg tracking-tight text-slate-900">Attendance Seat Booking</h1>
@@ -192,10 +198,10 @@ export default function App() {
                       </select>
                       <input 
                         type="password" 
-                        placeholder="Enter NTID..." 
+                        placeholder="Enter Password..." 
                         className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                        value={loginData.ntid}
-                        onChange={(e) => setLoginData(prev => ({ ...prev, ntid: e.target.value }))}
+                        value={loginData.password}
+                        onChange={(e) => setLoginData(prev => ({ ...prev, password: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
                       />
                       <button 
@@ -293,41 +299,6 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
 
   const teams = ['All', ...Array.from(new Set(users.map((u: User) => u.team)))];
 
-  const handlePlanAll = (user: User) => {
-    if (!user.assignedSeat) {
-      alert("No default seat assigned for this user.");
-      return;
-    }
-
-    // Check if the seat is occupied by anyone else in the current month
-    const isOccupiedByOthers = days.some(day => {
-      const dateStr = formatDate(day);
-      return attendance.some((r: AttendanceRecord) => 
-        r.date === dateStr && 
-        r.seatCode === user.assignedSeat && 
-        r.userId !== user.userId &&
-        r.mode === 'WFO'
-      );
-    });
-
-    if (isOccupiedByOthers) {
-      alert(`The seat ${user.assignedSeat} is already occupied by someone else on one or more days this month. Cannot perform bulk planning.`);
-      return;
-    }
-
-    if (!confirm(`Plan default seat (${user.assignedSeat}) for all working days in ${formatMonthYear(currentMonthDate)}?`)) return;
-    
-    days.forEach(day => {
-      const isToday = isSameDay(day, new Date());
-      const isPastDay = !isToday && day < new Date(new Date().setHours(0, 0, 0, 0));
-      const canEdit = !isPastDay || currentUser?.userId === 'GTH8HC';
-
-      if (!isWeekend(day) && canEdit) {
-        onSave(user.userId, day, 'WFO', user.assignedSeat, '');
-      }
-    });
-  };
-
   return (
     <div className="space-y-4">
       {/* Header with Month and Legend */}
@@ -379,11 +350,11 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
           <table className="w-full border-collapse table-fixed">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="p-1 text-left text-[12px] font-bold text-slate-600 uppercase tracking-wider sticky left-0 bg-slate-50 z-10 w-18 border-r border-slate-200">ID</th>
-                <th className="p-1 text-left text-[12px] font-bold text-slate-600 uppercase tracking-wider sticky left-[72px] bg-slate-50 z-10 w-40 border-r border-slate-200">Employee</th>
-                <th className="p-1 text-left text-[12px] font-bold text-slate-600 uppercase tracking-wider sticky left-[232px] bg-slate-50 z-10 w-22 border-r border-slate-200">Project</th>
-                <th className="p-1 text-left text-[12px] font-bold text-slate-600 uppercase tracking-wider sticky left-[320px] bg-slate-50 z-10 w-18 border-r border-slate-200">Seat</th>
-                <th className="p-1 text-left text-[12px] font-bold text-slate-600 uppercase tracking-wider sticky left-[392px] bg-slate-50 z-10 w-24 border-r border-slate-200">Status</th>
+                <th className="p-1 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-0 bg-slate-50 z-10 w-14 border-r border-slate-200">ID</th>
+                <th className="p-1 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[56px] bg-slate-50 z-10 w-32 border-r border-slate-200">Employee</th>
+                <th className="p-1 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[184px] bg-slate-50 z-10 w-16 border-r border-slate-200">Project</th>
+                <th className="p-1 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[248px] bg-slate-50 z-10 w-14 border-r border-slate-200">Seat</th>
+                <th className="p-1 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[304px] bg-slate-50 z-10 w-20 border-r border-slate-200">Status</th>
                 {days.map(day => {
                   const isToday = isSameDay(day, new Date());
                   return (
@@ -423,36 +394,29 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
                 return (
                   <tr key={user.userId} className="border-t border-slate-100 hover:bg-slate-50/50 transition-colors">
                     <td className="p-1 sticky left-0 bg-white z-10 border-r border-slate-200">
-                      <p className="text-[12px] text-slate-600 font-bold truncate">{user.userId}</p>
+                      <p className="text-[11px] text-slate-600 font-bold truncate">{user.userId}</p>
                     </td>
-                    <td className="p-1 sticky left-[72px] bg-white z-10 border-r border-slate-200">
+                    <td className="p-1 sticky left-[56px] bg-white z-10 border-r border-slate-200">
                       <div className="flex items-center gap-1.5">
-                        <div className="w-5 h-5 rounded flex items-center justify-center text-white font-bold text-[10px] flex-shrink-0" style={{ backgroundColor: TEAM_COLORS[user.team] || TEAM_COLORS.Default }}>
+                        <div className="w-4 h-4 rounded flex items-center justify-center text-white font-bold text-[9px] flex-shrink-0" style={{ backgroundColor: TEAM_COLORS[user.team] || TEAM_COLORS.Default }}>
                           {user.project.charAt(0)}
                         </div>
-                        <p className="text-[13px] font-bold text-slate-900 truncate leading-none">{user.name}</p>
+                        <p className="text-[12px] font-bold text-slate-900 truncate leading-none">{user.name}</p>
                       </div>
                     </td>
-                    <td className="p-1 sticky left-[232px] bg-white z-10 border-r border-slate-200">
-                      <p className="text-[12px] text-slate-700 font-bold uppercase truncate">{user.project}</p>
+                    <td className="p-1 sticky left-[184px] bg-white z-10 border-r border-slate-200">
+                      <p className="text-[11px] text-slate-700 font-bold uppercase truncate">{user.project}</p>
                     </td>
-                    <td className="p-1 sticky left-[320px] bg-white z-10 border-r border-slate-200">
-                      <p className="text-[12px] font-black truncate" style={{ color: TEAM_COLORS[user.team] || TEAM_COLORS.Default }}>
+                    <td className="p-1 sticky left-[248px] bg-white z-10 border-r border-slate-200">
+                      <p className="text-[11px] font-black truncate" style={{ color: TEAM_COLORS[user.team] || TEAM_COLORS.Default }}>
                         {user.assignedSeat || '-'}
                       </p>
                     </td>
-                    <td className="p-1 sticky left-[392px] bg-white z-10 border-r border-slate-200">
+                    <td className="p-1 sticky left-[304px] bg-white z-10 border-r border-slate-200">
                       <div className="flex items-center gap-1">
-                        <div className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full text-center truncate flex-1", statusClass)}>
+                        <div className={cn("text-[8px] font-bold px-1.5 py-0.5 rounded-full text-center truncate flex-1", statusClass)}>
                           {statusLabel}
                         </div>
-                        <button 
-                          onClick={() => handlePlanAll(user)}
-                          className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-emerald-600 transition-colors"
-                          title="Plan All Month"
-                        >
-                          <CalendarIcon size={12} />
-                        </button>
                       </div>
                     </td>
                     {days.map(day => (
@@ -628,8 +592,8 @@ function SeatCell({ user, day, attendance, seats, allUsers, onSave, currentUser 
   }, [seats, occupiedSeats, user.assignedSeat, user.project, allUsers]);
 
   const handleSelectChange = (val: string) => {
-    if (weekend || !canEdit) return; // Disable selection on weekends or past days
-    if (val === 'WFH' || val === 'LEAVE' || val === 'FLEXID') {
+    if (weekend || !canEdit || !currentUser) return; // Disable selection on weekends, past days or if not logged in
+    if (val === 'WFH' || val === 'LEAVE' || val === 'FLEXID' || val === 'HOLIDAY') {
       onSave(user.userId, day, val, '', '');
     } else if (val === 'CLEAR') {
       onSave(user.userId, day, 'WFO', '', '');
@@ -646,6 +610,7 @@ function SeatCell({ user, day, attendance, seats, allUsers, onSave, currentUser 
     if (record.mode === 'WFH') return 'WFH';
     if (record.mode === 'LEAVE') return 'Leave';
     if (record.mode === 'FLEXID') return 'Flexi';
+    if (record.mode === 'HOLIDAY') return 'Holiday';
     return record.mode;
   };
 
@@ -668,7 +633,7 @@ function SeatCell({ user, day, attendance, seats, allUsers, onSave, currentUser 
         </span>
 
         {/* The hidden select that covers the cell */}
-        {!weekend && canEdit && (
+        {!weekend && canEdit && currentUser && (
           <select 
             className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
             value={currentValue}
@@ -679,6 +644,7 @@ function SeatCell({ user, day, attendance, seats, allUsers, onSave, currentUser 
               <option value="WFH">🏠 Home</option>
               <option value="LEAVE">🏖️ Leave</option>
               <option value="FLEXID">⚡ FlexiD</option>
+              <option value="HOLIDAY">🎉 Holiday</option>
             </optgroup>
             
             {seatGroups.defaultSeat && (

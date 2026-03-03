@@ -1,4 +1,4 @@
-export type WorkingMode = 'WFO' | 'WFH' | 'LEAVE' | 'FLEXID';
+export type WorkingMode = 'WFO' | 'WFH' | 'LEAVE' | 'FLEXID' | 'HOLIDAY';
 
 export interface User {
   userId: string;

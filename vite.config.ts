@@ -10,10 +10,10 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss()],
 
-    // ✅ Custom domain chạy ở root
+    // âœ… Custom domain cháº¡y á»Ÿ root
     base: '/',
 
-    // ✅ (khuyến nghị) Inject sang import.meta.env thay vì process.env
+    // âœ… (khuyáº¿n nghá»‹) Inject sang import.meta.env thay vÃ¬ process.env
     define: {
       'import.meta.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY ?? ''),
     },

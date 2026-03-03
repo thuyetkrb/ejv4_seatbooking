@@ -22,11 +22,12 @@ export const googleSheetService = {
     }
 
     try {
-      const response = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
+      console.log(`Saving data to sheet: ${sheetName}`, data);
+      await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
         method: 'POST',
-        mode: 'no-cors', // Google Apps Script requires no-cors for simple POST
+        mode: 'no-cors', // Google Apps Script requires no-cors for simple POST from browser
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'text/plain',
         },
         body: JSON.stringify({
           sheetName,

@@ -76,25 +76,33 @@ const MOCK_SEATS: Seat[] = SEAT_LAYOUT_CONFIG.map(s => ({
 export const dataService = {
   async fetchConfig(): Promise<{ users: User[]; seats: Seat[] }> {
     // Try to fetch from Google Sheets first
-    const sheetUsers = await googleSheetService.fetchSheetData(CONFIG.SHEETS.USER_INFO);
+    const [sheetUsers, sheetLogin] = await Promise.all([
+      googleSheetService.fetchSheetData(CONFIG.SHEETS.USER_INFO),
+      googleSheetService.fetchSheetData(CONFIG.SHEETS.LOGIN)
+    ]);
+    
     let users: User[] = [];
     
     if (sheetUsers.length > 0) {
-      users = sheetUsers.map(u => ({
-        userId: u.userId || u.UserID || '',
-        name: u.name || u.Name || '',
-        team: u.team || u.Team || '',
-        project: u.project || u.Project || '',
-        group: u.group || u.Group || '',
-        active: true,
-        assignedSeat: u.assignedSeat || u.AssignedSeat || '',
-        role: u.role || u.Role || 'user',
-        phone: u.phone || u.Phone || '',
-        email: u.email || u.Email || '',
-        address: u.address || u.Address || '',
-        otherInfo: u.otherInfo || u.OtherInfo || '',
-        password: u.password || u.Password || 'password123'
-      }));
+      users = sheetUsers.map(u => {
+        const userId = u.userId || u.UserID || '';
+        const loginInfo = sheetLogin.find(l => (l.userId || l.UserID) === userId);
+        return {
+          userId,
+          name: u.name || u.Name || '',
+          team: u.team || u.Team || '',
+          project: u.project || u.Project || '',
+          group: u.group || u.Group || '',
+          active: true,
+          assignedSeat: u.assignedSeat || u.AssignedSeat || '',
+          role: u.role || u.Role || 'user',
+          phone: u.phone || u.Phone || '',
+          email: u.email || u.Email || '',
+          address: u.address || u.Address || '',
+          otherInfo: u.otherInfo || u.OtherInfo || '',
+          password: loginInfo?.password || loginInfo?.Password || u.password || u.Password || 'password123'
+        };
+      });
     } else {
       // If sheet is empty, use mock data and we'll save it later
       users = MOCK_USERS;

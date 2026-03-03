@@ -162,7 +162,7 @@ export default function App() {
 
   const handleLogin = () => {
     const user = users.find(u => u.userId === loginData.userId);
-    if (user && loginData.password.trim() !== '') {
+    if (user && user.password === loginData.password) {
       setCurrentUser(user);
       localStorage.setItem('currentUser', JSON.stringify(user));
       localStorage.setItem('currentPass', loginData.password);
@@ -269,14 +269,14 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#f5f5f5] text-slate-900 font-sans">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
+      <header className="bg-slate-50/95 backdrop-blur-md border-b border-slate-200/60 sticky top-0 z-40 shadow-sm border-t-2 border-t-emerald-500">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="w-8 h-8 sm:w-10 sm:h-10 bg-emerald-600 rounded-lg sm:rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-200 relative overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-50" />
               <span className="text-sm sm:text-lg font-black relative z-10">EJV4</span>
             </div>
-            <div className="hidden xs:block">
+            <div className="block">
               <h1 className="font-bold text-sm sm:text-lg tracking-tight text-slate-900 leading-tight">Attendance Booking</h1>
               <p className="text-[8px] sm:text-[10px] uppercase tracking-widest text-slate-600 font-bold">Dashboard v1.0</p>
             </div>
@@ -442,38 +442,49 @@ export default function App() {
       </main>
 
       {/* Footer Bar */}
-      <footer className="bg-white border-t border-slate-200 py-6 mt-12">
+      <footer className="bg-slate-50/95 backdrop-blur-md border-t border-slate-200/60 py-8 mt-12 shadow-inner">
         <div className="max-w-[1600px] mx-auto px-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-            <div className="flex items-center gap-4">
-              <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400">
-                <CalendarIcon size={16} />
+            <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-12">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-emerald-500 shadow-sm border border-slate-100">
+                  <CalendarIcon size={20} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Current Date</p>
+                  <p className="text-sm font-bold text-slate-700">{format(new Date(), 'EEEE, MMMM do, yyyy')}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Current Date</p>
-                <p className="text-sm font-bold text-slate-700">{format(new Date(), 'EEEE, MMMM do, yyyy')}</p>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-emerald-500 shadow-sm border border-slate-100">
+                  <UserIcon size={20} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Author</p>
+                  <p className="text-sm font-bold text-slate-700">{CONFIG.AUTHOR}</p>
+                </div>
               </div>
             </div>
 
             {isAdmin && (
-              <div className="flex flex-wrap justify-center gap-2">
+              <div className="flex flex-wrap justify-center gap-3">
                 <button 
                   onClick={handleRefreshData}
-                  className="flex items-center gap-2 bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-200 transition-all border border-slate-200"
+                  className="flex items-center gap-2 bg-white text-slate-600 px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-50 transition-all border border-slate-200 shadow-sm"
                 >
                   <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
                   Refresh Data
                 </button>
                 <button 
                   onClick={handleSaveAllToSheets}
-                  className="flex items-center gap-2 bg-emerald-50 text-emerald-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-emerald-100 transition-all border border-emerald-100"
+                  className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-2.5 rounded-xl text-xs font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100"
                 >
                   <Save size={14} />
                   Save to Database
                 </button>
                 <button 
                   onClick={handleExportData}
-                  className="flex items-center gap-2 bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-blue-100 transition-all border border-blue-100"
+                  className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-xl text-xs font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
                 >
                   <Download size={14} />
                   Export TXT
@@ -573,11 +584,11 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
           <table className="w-full border-collapse table-fixed">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="p-1 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-0 bg-slate-50 z-10 w-14 border-r border-slate-200">ID</th>
-                <th className="p-1 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[56px] bg-slate-50 z-10 w-48 border-r border-slate-200">Employee</th>
-                <th className="p-1 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[248px] bg-slate-50 z-10 w-20 border-r border-slate-200">Project</th>
-                <th className="p-1 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[328px] bg-slate-50 z-10 w-16 border-r border-slate-200">Seat</th>
-                <th className="p-1 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[392px] bg-slate-50 z-10 w-24 border-r border-slate-200">Status</th>
+                <th className="p-1 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-0 bg-slate-50 z-10 w-12 sm:w-14 border-r border-slate-200">ID</th>
+                <th className="p-1 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[48px] sm:left-[56px] bg-slate-50 z-10 w-32 sm:w-48 border-r border-slate-200">Employee</th>
+                <th className="p-1 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[176px] sm:left-[248px] bg-slate-50 z-10 w-16 sm:w-20 border-r border-slate-200">Project</th>
+                <th className="p-1 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[240px] sm:left-[328px] bg-slate-50 z-10 w-14 sm:w-16 border-r border-slate-200">Seat</th>
+                <th className="p-1 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[296px] sm:left-[392px] bg-slate-50 z-10 w-20 sm:w-24 border-r border-slate-200">Status</th>
                 {days.map(day => {
                   const isToday = isSameDay(day, new Date());
                   return (
@@ -619,23 +630,23 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
                     <td className="p-1 sticky left-0 bg-white z-10 border-r border-slate-200">
                       <p className="text-[11px] text-slate-600 font-bold truncate">{user.userId}</p>
                     </td>
-                    <td className="p-1 sticky left-[56px] bg-white z-10 border-r border-slate-200">
+                    <td className="p-1 sticky left-[48px] sm:left-[56px] bg-white z-10 border-r border-slate-200">
                       <div className="flex items-center gap-1.5">
                         <div className="w-4 h-4 rounded flex items-center justify-center text-white font-bold text-[9px] flex-shrink-0" style={{ backgroundColor: TEAM_COLORS[user.team] || TEAM_COLORS.Default }}>
                           {user.project.charAt(0)}
                         </div>
-                        <p className="text-[12px] font-bold text-slate-900 truncate leading-none">{user.name}</p>
+                        <p className="text-[12px] font-bold text-slate-900 truncate leading-tight">{user.name}</p>
                       </div>
                     </td>
-                    <td className="p-1 sticky left-[248px] bg-white z-10 border-r border-slate-200">
+                    <td className="p-1 sticky left-[176px] sm:left-[248px] bg-white z-10 border-r border-slate-200">
                       <p className="text-[11px] text-slate-700 font-bold uppercase truncate">{user.project}</p>
                     </td>
-                    <td className="p-1 sticky left-[328px] bg-white z-10 border-r border-slate-200">
+                    <td className="p-1 sticky left-[240px] sm:left-[328px] bg-white z-10 border-r border-slate-200">
                       <p className="text-[11px] font-black truncate" style={{ color: TEAM_COLORS[user.team] || TEAM_COLORS.Default }}>
                         {user.assignedSeat || '-'}
                       </p>
                     </td>
-                    <td className="p-1 sticky left-[392px] bg-white z-10 border-r border-slate-200">
+                    <td className="p-1 sticky left-[296px] sm:left-[392px] bg-white z-10 border-r border-slate-200">
                       <div className="flex items-center gap-1">
                         <div className={cn("text-[9px] font-black px-1.5 py-0.5 rounded-full text-center truncate flex-1", statusClass)}>
                           {statusLabel}

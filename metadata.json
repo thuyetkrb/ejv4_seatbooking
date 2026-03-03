@@ -1,0 +1,5 @@
+{
+  "name": "EJV4 Attendance Booking",
+  "description": "Hệ thống quản lý chỗ ngồi và trạng thái làm việc (WFO/WFH/Leave) tích hợp Google Sheets.",
+  "requestFramePermissions": []
+}

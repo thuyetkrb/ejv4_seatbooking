@@ -76,35 +76,46 @@ const MOCK_SEATS: Seat[] = SEAT_LAYOUT_CONFIG.map(s => ({
 export const dataService = {
   async fetchConfig(): Promise<{ users: User[]; seats: Seat[] }> {
     // Try to fetch from Google Sheets first
-    const [sheetUsers, sheetLogin] = await Promise.all([
-      googleSheetService.fetchSheetData(CONFIG.SHEETS.USER_INFO),
-      googleSheetService.fetchSheetData(CONFIG.SHEETS.LOGIN)
+    const [sheetLogin, sheetUsers] = await Promise.all([
+      googleSheetService.fetchSheetData(CONFIG.SHEETS.LOGIN),
+      googleSheetService.fetchSheetData(CONFIG.SHEETS.USER_INFO)
     ]);
     
     let users: User[] = [];
     
-    if (sheetUsers.length > 0) {
-      users = sheetUsers.map(u => {
-        const userId = u.userId || u.UserID || '';
-        const loginInfo = sheetLogin.find(l => (l.userId || l.UserID) === userId);
-        return {
-          userId,
-          name: u.name || u.Name || '',
-          team: u.team || u.Team || '',
-          project: u.project || u.Project || '',
-          group: u.group || u.Group || '',
-          active: true,
-          assignedSeat: u.assignedSeat || u.AssignedSeat || '',
-          role: u.role || u.Role || 'user',
-          phone: u.phone || u.Phone || '',
-          email: u.email || u.Email || '',
-          address: u.address || u.Address || '',
-          otherInfo: u.otherInfo || u.OtherInfo || '',
-          password: loginInfo?.password || loginInfo?.Password || u.password || u.Password || 'password123'
-        };
-      });
+    // Prioritize Login sheet as it contains the most critical info (passwords + user data)
+    if (sheetLogin.length > 0) {
+      users = sheetLogin.map(u => ({
+        userId: u.userId || u.UserID || '',
+        name: u.name || u.Name || '',
+        team: u.team || u.Team || '',
+        project: u.project || u.Project || '',
+        group: u.group || u.Group || '',
+        active: String(u.active || u.Active).toLowerCase() === 'true' || u.active === true,
+        assignedSeat: u.assignedSeat || u.AssignedSeat || '',
+        role: u.role || u.Role || 'user',
+        password: u.password || u.Password || 'password123',
+        // Merge extra info from UserInfo sheet if available
+        ...(sheetUsers.find(su => (su.userId || su.UserID) === (u.userId || u.UserID)) || {})
+      }));
+    } else if (sheetUsers.length > 0) {
+      users = sheetUsers.map(u => ({
+        userId: u.userId || u.UserID || '',
+        name: u.name || u.Name || '',
+        team: u.team || u.Team || '',
+        project: u.project || u.Project || '',
+        group: u.group || u.Group || '',
+        active: true,
+        assignedSeat: u.assignedSeat || u.AssignedSeat || '',
+        role: u.role || u.Role || 'user',
+        phone: u.phone || u.Phone || '',
+        email: u.email || u.Email || '',
+        address: u.address || u.Address || '',
+        otherInfo: u.otherInfo || u.OtherInfo || '',
+        password: u.password || u.Password || 'password123'
+      }));
     } else {
-      // If sheet is empty, use mock data and we'll save it later
+      // If sheet is empty, use mock data
       users = MOCK_USERS;
     }
 
@@ -120,7 +131,17 @@ export const dataService = {
   }) {
     const results = await Promise.all([
       googleSheetService.saveData(CONFIG.SHEETS.USER_INFO, data.users),
-      googleSheetService.saveData(CONFIG.SHEETS.LOGIN, data.users.map(u => ({ userId: u.userId, password: u.password }))),
+      googleSheetService.saveData(CONFIG.SHEETS.LOGIN, data.users.map(u => ({
+        userId: u.userId,
+        name: u.name,
+        team: u.team,
+        project: u.project,
+        group: u.group,
+        active: u.active,
+        assignedSeat: u.assignedSeat,
+        role: u.role,
+        password: u.password
+      }))),
       googleSheetService.saveData(CONFIG.SHEETS.TIMELINE, data.attendance),
       googleSheetService.saveData(CONFIG.SHEETS.HISTORY, data.logs),
       googleSheetService.saveData(CONFIG.SHEETS.GUIDE, [{ content: data.guide }]),
@@ -132,6 +153,17 @@ export const dataService = {
   async saveUsers(users: User[]) {
     localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(users));
     await googleSheetService.saveData(CONFIG.SHEETS.USER_INFO, users);
+    await googleSheetService.saveData(CONFIG.SHEETS.LOGIN, users.map(u => ({
+      userId: u.userId,
+      name: u.name,
+      team: u.team,
+      project: u.project,
+      group: u.group,
+      active: u.active,
+      assignedSeat: u.assignedSeat,
+      role: u.role,
+      password: u.password
+    })));
   },
 
   async changePassword(userId: string, newPassword: string) {
@@ -143,10 +175,18 @@ export const dataService = {
       users[userIndex].password = newPassword;
       localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(users));
       
-      // Sync to UserInfo sheet (which contains password in our schema)
-      // and also potentially a dedicated Login sheet if preferred
       await googleSheetService.saveData(CONFIG.SHEETS.USER_INFO, users);
-      await googleSheetService.saveData(CONFIG.SHEETS.LOGIN, users.map(u => ({ userId: u.userId, password: u.password })));
+      await googleSheetService.saveData(CONFIG.SHEETS.LOGIN, users.map(u => ({
+        userId: u.userId,
+        name: u.name,
+        team: u.team,
+        project: u.project,
+        group: u.group,
+        active: u.active,
+        assignedSeat: u.assignedSeat,
+        role: u.role,
+        password: u.password
+      })));
       return true;
     }
     return false;

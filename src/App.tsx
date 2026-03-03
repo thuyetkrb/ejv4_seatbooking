@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Search, Filter, ChevronLeft, ChevronRight, 
-  Calendar as CalendarIcon, User as UserIcon, 
+  Calendar as CalendarIcon, User as UserIcon, Users as UsersIcon,
   MapPin, Info, History, BookOpen, LogOut, Save, X, Settings, Sliders,
-  Lock, AlertCircle, CheckCircle
+  Lock, AlertCircle, CheckCircle, RefreshCw, Download, Bell
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -22,7 +22,6 @@ import {
 import { addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, isSameDay, parseISO, format } from 'date-fns';
 import { enUS } from 'date-fns/locale';
 import { NoticeBoard } from './components/NoticeBoard';
-import { Bell } from 'lucide-react';
 import { CONFIG } from './config';
 
 function cn(...inputs: ClassValue[]) {
@@ -51,6 +50,7 @@ export default function App() {
 
   useEffect(() => {
     const init = async () => {
+      setLoading(true);
       const config = await dataService.fetchConfig();
       setUsers(config.users);
       setSeats(config.seats);
@@ -66,6 +66,22 @@ export default function App() {
       setLogs(lgs);
       setGuideContent(gd);
       setNotices(nts);
+
+      // Requirement: If Google Sheets was empty (no users found), save mock data to it
+      // We check if users came from MOCK_USERS (which happens in dataService.fetchConfig if sheet is empty)
+      // Actually, let's check if the sheet was empty by looking at the fetch result.
+      // For simplicity, if we have users but no attendance/notices in sheets, we might want to sync.
+      // But specifically: "Trường hợp google chưa có data, thì ở lần đầu tiên mở web, lưu tất cả dữ liệu mẫu hiện tại vào database."
+      if (config.users.length > 0 && att.length === 0 && nts.length === 0) {
+        console.log("Initial sync: Saving mock data to Google Sheets...");
+        await dataService.saveAllData({
+          users: config.users,
+          attendance: att,
+          logs: lgs,
+          guide: gd,
+          notices: nts
+        });
+      }
       
       const savedUser = localStorage.getItem('currentUser');
       const savedPass = localStorage.getItem('currentPass');
@@ -86,6 +102,63 @@ export default function App() {
     };
     init();
   }, []);
+
+  const handleRefreshData = async () => {
+    setLoading(true);
+    const config = await dataService.fetchConfig();
+    setUsers(config.users);
+    setSeats(config.seats);
+    const [att, lgs, gd, nts] = await Promise.all([
+      dataService.getAttendance(),
+      dataService.getLogs(),
+      dataService.getGuide(),
+      dataService.getNotices()
+    ]);
+    setAttendance(att);
+    setLogs(lgs);
+    setGuideContent(gd);
+    setNotices(nts);
+    setLoading(false);
+    alert('Data refreshed from Google Sheets successfully!');
+  };
+
+  const handleSaveAllToSheets = async () => {
+    setLoading(true);
+    const success = await dataService.saveAllData({
+      users,
+      attendance,
+      logs,
+      guide: guideContent,
+      notices
+    });
+    setLoading(false);
+    if (success) {
+      alert('All data saved to Google Sheets successfully!');
+    } else {
+      alert('Failed to save data. Please check your Google Script URL and permissions.');
+    }
+  };
+
+  const handleExportData = () => {
+    const exportData = {
+      users,
+      attendance,
+      logs,
+      guide: guideContent,
+      notices,
+      exportDate: new Date().toISOString(),
+      author: CONFIG.AUTHOR
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ejv4_database_export_${format(new Date(), 'yyyyMMdd_HHmm')}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   const handleLogin = () => {
     const user = users.find(u => u.userId === loginData.userId);
@@ -196,52 +269,68 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#f5f5f5] text-slate-900 font-sans">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
-        <div className="max-w-[1600px] mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-200 relative overflow-hidden group">
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-emerald-600 rounded-lg sm:rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-200 relative overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-50" />
-              <span className="text-lg font-black relative z-10">EJV4</span>
+              <span className="text-sm sm:text-lg font-black relative z-10">EJV4</span>
             </div>
-            <div>
-              <h1 className="font-bold text-lg tracking-tight text-slate-900">Attendance Seat Booking</h1>
-              <p className="text-[10px] uppercase tracking-widest text-slate-600 font-bold">Dashboard v1.0</p>
+            <div className="hidden xs:block">
+              <h1 className="font-bold text-sm sm:text-lg tracking-tight text-slate-900 leading-tight">Attendance Booking</h1>
+              <p className="text-[8px] sm:text-[10px] uppercase tracking-widest text-slate-600 font-bold">Dashboard v1.0</p>
             </div>
           </div>
 
-          <nav className="flex gap-1 bg-slate-100 p-1 rounded-xl">
+          <nav className="hidden md:flex gap-1 bg-slate-100 p-1 rounded-xl">
             <TabButton active={activeTab === 'timeline'} onClick={() => setActiveTab('timeline')} icon={<CalendarIcon size={16} />} label="Timeline" />
             <TabButton active={activeTab === 'layout'} onClick={() => setActiveTab('layout')} icon={<MapPin size={16} />} label="Seat Map" />
             <TabButton active={activeTab === 'guide'} onClick={() => setActiveTab('guide')} icon={<BookOpen size={16} />} label="Guide & Logs" />
             <TabButton active={activeTab === 'notice'} onClick={() => setActiveTab('notice')} icon={<Bell size={16} />} label="Notice" />
             <TabButton active={activeTab === 'userinfo'} onClick={() => setActiveTab('userinfo')} icon={<UserIcon size={16} />} label="User Info" />
             {isAdmin && (
-              <TabButton active={activeTab === 'config'} onClick={() => setActiveTab('config')} icon={<Settings size={16} />} label="Configuration" />
+              <TabButton active={activeTab === 'config'} onClick={() => setActiveTab('config')} icon={<Settings size={16} />} label="Config" />
             )}
           </nav>
 
-          <div className="flex items-center gap-4">
+          {/* Mobile Nav Toggle */}
+          <div className="md:hidden flex items-center bg-slate-100 p-1 rounded-lg">
+            <select 
+              className="bg-transparent border-none text-xs font-bold focus:ring-0 py-1 pl-2 pr-8"
+              value={activeTab}
+              onChange={(e) => setActiveTab(e.target.value as any)}
+            >
+              <option value="timeline">Timeline</option>
+              <option value="layout">Seat Map</option>
+              <option value="guide">Guide & Logs</option>
+              <option value="notice">Notice</option>
+              <option value="userinfo">User Info</option>
+              {isAdmin && <option value="config">Config</option>}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-4">
             {currentUser ? (
               <>
-                <div className="text-right hidden sm:block">
+                <div className="text-right hidden lg:block">
                   <p className="text-sm font-semibold">{currentUser.name}</p>
                   <p className="text-xs text-slate-600">{currentUser.userId}</p>
                 </div>
                 <button 
                   onClick={handleLogout}
-                  className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors"
+                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors"
                   title="Logout"
                 >
-                  <LogOut size={18} />
+                  <LogOut size={16} />
                 </button>
               </>
             ) : (
               <div className="relative">
                 <button 
                   onClick={() => setShowLogin(!showLogin)}
-                  className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100"
+                  className="flex items-center gap-2 bg-emerald-600 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100"
                 >
-                  <UserIcon size={16} />
+                  <UserIcon size={14} />
                   Login
                 </button>
                 
@@ -353,14 +442,49 @@ export default function App() {
       </main>
 
       {/* Footer Bar */}
-      <footer className="bg-white border-t border-slate-200 py-4 mt-12">
-        <div className="max-w-[1600px] mx-auto px-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-2 text-slate-500 text-sm font-medium">
-            <CalendarIcon size={16} />
-            <span>Today: {formatDisplayDate(new Date())}</span>
-          </div>
-          <div className="text-slate-500 text-sm font-medium">
-            Author: <span className="text-slate-900 font-bold">{CONFIG.AUTHOR}</span>
+      <footer className="bg-white border-t border-slate-200 py-6 mt-12">
+        <div className="max-w-[1600px] mx-auto px-6">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+            <div className="flex items-center gap-4">
+              <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400">
+                <CalendarIcon size={16} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Current Date</p>
+                <p className="text-sm font-bold text-slate-700">{format(new Date(), 'EEEE, MMMM do, yyyy')}</p>
+              </div>
+            </div>
+
+            {isAdmin && (
+              <div className="flex flex-wrap justify-center gap-2">
+                <button 
+                  onClick={handleRefreshData}
+                  className="flex items-center gap-2 bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-200 transition-all border border-slate-200"
+                >
+                  <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+                  Refresh Data
+                </button>
+                <button 
+                  onClick={handleSaveAllToSheets}
+                  className="flex items-center gap-2 bg-emerald-50 text-emerald-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-emerald-100 transition-all border border-emerald-100"
+                >
+                  <Save size={14} />
+                  Save to Database
+                </button>
+                <button 
+                  onClick={handleExportData}
+                  className="flex items-center gap-2 bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-blue-100 transition-all border border-blue-100"
+                >
+                  <Download size={14} />
+                  Export TXT
+                </button>
+              </div>
+            )}
+
+            <div className="text-center md:text-right">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">System Author</p>
+              <p className="text-sm font-bold text-slate-900">{CONFIG.AUTHOR}</p>
+            </div>
           </div>
         </div>
       </footer>
@@ -401,32 +525,32 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
   return (
     <div className="space-y-4">
       {/* Header with Month and Legend */}
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center bg-slate-100 rounded-xl p-1">
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col lg:flex-row items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto">
+          <div className="flex items-center bg-slate-100 rounded-xl p-1 w-full sm:w-auto justify-between sm:justify-start">
             <button onClick={() => setCurrentMonthDate(subMonths(currentMonthDate, 1))} className="p-1.5 hover:bg-white rounded-lg transition-all"><ChevronLeft size={18} /></button>
             <div className="px-4 text-sm font-bold text-slate-700 min-w-[140px] text-center">{formatMonthYear(currentMonthDate)}</div>
             <button onClick={() => setCurrentMonthDate(addMonths(currentMonthDate, 1))} className="p-1.5 hover:bg-white rounded-lg transition-all"><ChevronRight size={18} /></button>
           </div>
           
-          <div className="h-6 w-px bg-slate-200" />
+          <div className="hidden sm:block h-6 w-px bg-slate-200" />
           
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
             {Object.entries(TEAM_COLORS).filter(([k]) => k !== 'Default' && k !== 'Admin').map(([team, color]) => (
               <div key={team} className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
-                <span className="text-[10px] font-bold text-slate-600 uppercase">{team}</span>
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+                <span className="text-[9px] font-bold text-slate-600 uppercase">{team}</span>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="flex items-center gap-3 flex-1 max-w-md">
+        <div className="flex items-center gap-3 w-full lg:max-w-md">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
             <input 
               type="text" 
-              placeholder="Search employee or ID..." 
+              placeholder="Search..." 
               className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -797,45 +921,46 @@ function LayoutTab({ seats, attendance, users }: any) {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl">
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col lg:flex-row items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto">
+          <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl w-full sm:w-auto justify-between sm:justify-start">
             <button onClick={() => setSelectedDate(subDays(selectedDate, 1))} className="p-1.5 hover:bg-white rounded-lg transition-all"><ChevronLeft size={18} /></button>
             <span className="px-4 text-sm font-bold">{formatDisplayDate(selectedDate)}</span>
             <button onClick={() => setSelectedDate(addDays(selectedDate, 1))} className="p-1.5 hover:bg-white rounded-lg transition-all"><ChevronRight size={18} /></button>
           </div>
           
-          <div className="h-6 w-px bg-slate-200 mx-2" />
+          <div className="hidden sm:block h-6 w-px bg-slate-200 mx-2" />
           
-          <div className="flex gap-1 bg-slate-100 p-1 rounded-xl">
+          <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-full sm:w-auto">
             <button 
               onClick={() => setViewMode('all')}
-              className={cn("px-3 py-1.5 rounded-lg text-xs font-bold transition-all", viewMode === 'all' ? "bg-white shadow-sm text-emerald-600" : "text-slate-500")}
+              className={cn("flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-xs font-bold transition-all", viewMode === 'all' ? "bg-white shadow-sm text-emerald-600" : "text-slate-500")}
             >
               All Seats
             </button>
             <button 
               onClick={() => setViewMode('available')}
-              className={cn("px-3 py-1.5 rounded-lg text-xs font-bold transition-all", viewMode === 'available' ? "bg-white shadow-sm text-emerald-600" : "text-slate-500")}
+              className={cn("flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-xs font-bold transition-all", viewMode === 'available' ? "bg-white shadow-sm text-emerald-600" : "text-slate-500")}
             >
               Available Only
             </button>
           </div>
         </div>
 
-        <div className="flex gap-4">
-          {Object.entries(TEAM_COLORS).filter(([k]) => k !== 'Default').map(([team, color]) => (
+        <div className="flex flex-wrap justify-center gap-3">
+          {Object.entries(TEAM_COLORS).filter(([k]) => k !== 'Default' && k !== 'Admin').map(([team, color]) => (
             <div key={team} className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
-              <span className="text-[10px] font-bold text-slate-500 uppercase">{team}</span>
+              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+              <span className="text-[9px] font-bold text-slate-500 uppercase">{team}</span>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 min-h-[600px] relative overflow-hidden">
-        {/* Layout Container */}
-        <div className="grid grid-cols-11 gap-1 max-w-5xl mx-auto relative">
+      <div className="bg-white p-4 sm:p-8 rounded-3xl shadow-sm border border-slate-200 min-h-[400px] relative overflow-hidden">
+        {/* Layout Container with Horizontal Scroll for Mobile */}
+        <div className="overflow-x-auto custom-scrollbar pb-4">
+          <div className="grid grid-cols-11 gap-1 min-w-[800px] max-w-5xl mx-auto relative">
           
           {/* Kid Room Area */}
           <div className="col-span-6 row-span-7 bg-slate-200 rounded-lg flex items-center justify-center border-2 border-slate-300">
@@ -945,6 +1070,7 @@ function LayoutTab({ seats, attendance, users }: any) {
         </div>
       </div>
     </div>
+  </div>
   );
 }
 
@@ -1096,33 +1222,33 @@ function UserInformationTab({ users, currentUser, onUpdateUser, onChangePassword
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* My Info */}
       {currentUser && (
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-          <div className="flex justify-between items-center mb-6">
+        <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-200">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <h3 className="text-xl font-bold flex items-center gap-2">
               <UserIcon size={22} className="text-emerald-500" />
               My Information
             </h3>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
               <button 
                 onClick={() => setShowPasswordModal(true)} 
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-50 text-amber-600 hover:bg-amber-100 transition-all flex items-center gap-2"
+                className="flex-1 sm:flex-none px-4 py-2 rounded-xl text-xs font-bold bg-amber-50 text-amber-600 hover:bg-amber-100 transition-all flex items-center justify-center gap-2"
               >
                 <Lock size={14} /> Change Password
               </button>
               {editMode ? (
-                <div className="flex gap-2">
-                  <button onClick={() => setEditMode(false)} className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">Cancel</button>
-                  <button onClick={handleSave} className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-all flex items-center gap-2">
-                    <Save size={14} /> Save Changes
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <button onClick={() => setEditMode(false)} className="flex-1 sm:flex-none px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">Cancel</button>
+                  <button onClick={handleSave} className="flex-1 sm:flex-none px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-all flex items-center justify-center gap-2">
+                    <Save size={14} /> Save
                   </button>
                 </div>
               ) : (
-                <button onClick={() => setEditMode(true)} className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">Edit My Info</button>
+                <button onClick={() => setEditMode(true)} className="flex-1 sm:flex-none px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">Edit My Info</button>
               )}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             <InfoField label="User ID" value={currentUser.userId} readOnly />
             <InfoField label="Name" value={editedUser?.name || ''} onChange={(v: string) => setEditedUser(prev => prev ? {...prev, name: v} : null)} readOnly={!editMode} />
             <InfoField label="Role" value={editedUser?.role || ''} onChange={(v: string) => setEditedUser(prev => prev ? {...prev, role: v} : null)} readOnly={!editMode} />
@@ -1210,13 +1336,13 @@ function UserInformationTab({ users, currentUser, onUpdateUser, onChangePassword
       )}
 
       {/* All Members */}
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+      <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
         <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
           <Sliders size={22} className="text-emerald-500" />
           Member Directory
         </h3>
-        <div className="overflow-x-auto rounded-2xl border border-slate-100">
-          <table className="w-full border-collapse">
+        <div className="overflow-x-auto custom-scrollbar">
+          <table className="w-full border-collapse min-w-[800px]">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-100">
                 <th className="p-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">User ID</th>
@@ -1321,43 +1447,36 @@ function ConfigurationTab({ users, onUpdateUsers }: { users: User[], onUpdateUse
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-        <div className="flex justify-between items-center mb-6">
+      <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
           <div>
-            <h3 className="text-2xl font-bold flex items-center gap-2">
+            <h3 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
               <Settings size={24} className="text-emerald-500" />
               User Configuration
             </h3>
-            <p className="text-[12px] text-slate-500 font-bold uppercase tracking-wider">Manage default seat assignments and project details</p>
+            <p className="text-[10px] sm:text-[12px] text-slate-500 font-bold uppercase tracking-wider">Manage default seat assignments and project details</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
             <button 
               onClick={() => setShowFilters(!showFilters)}
-              className={cn("flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all", showFilters ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-600 hover:bg-slate-200")}
+              className={cn("flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all", showFilters ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-600 hover:bg-slate-200")}
             >
               <Sliders size={16} />
               Filters
             </button>
             <button 
-              onClick={() => setFilters({ userId: '', name: '', project: '', assignedSeat: '' })}
-              className="text-[12px] font-bold text-slate-500 hover:text-emerald-600 flex items-center gap-1 transition-colors"
-            >
-              <X size={14} />
-              Clear
-            </button>
-            <button 
               onClick={handleSave}
               disabled={isSaving}
-              className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-emerald-700 transition-all disabled:opacity-50 shadow-lg shadow-emerald-100"
+              className="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-emerald-600 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-emerald-700 transition-all disabled:opacity-50 shadow-lg shadow-emerald-100"
             >
               <Save size={16} />
-              {isSaving ? 'Saving...' : 'Save Changes'}
+              {isSaving ? 'Saving...' : 'Save All'}
             </button>
           </div>
         </div>
 
         {showFilters && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100 animate-in slide-in-from-top-2 duration-200">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100 animate-in slide-in-from-top-2 duration-200">
             <div className="space-y-1">
               <label className="text-[11px] font-bold text-slate-500 uppercase ml-1">User ID</label>
               <div className="relative">

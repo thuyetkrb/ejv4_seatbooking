@@ -96,18 +96,29 @@ export const dataService = {
         password: u.password || u.Password || 'password123'
       }));
     } else {
-      const savedUsers = localStorage.getItem(STORAGE_KEY_USERS);
-      users = savedUsers ? JSON.parse(savedUsers) : MOCK_USERS;
+      // If sheet is empty, use mock data and we'll save it later
+      users = MOCK_USERS;
     }
 
-    // Fetch configuration for seats if available
-    const sheetConfig = await googleSheetService.fetchSheetData(CONFIG.SHEETS.CONFIG);
-    let seats = MOCK_SEATS;
-    if (sheetConfig.length > 0) {
-      // Logic to parse seats from config if needed, otherwise use MOCK_SEATS
-    }
+    return { users, seats: MOCK_SEATS };
+  },
 
-    return { users, seats };
+  async saveAllData(data: {
+    users: User[];
+    attendance: AttendanceRecord[];
+    logs: AuditLog[];
+    guide: string;
+    notices: Notice[];
+  }) {
+    const results = await Promise.all([
+      googleSheetService.saveData(CONFIG.SHEETS.USER_INFO, data.users),
+      googleSheetService.saveData(CONFIG.SHEETS.LOGIN, data.users.map(u => ({ userId: u.userId, password: u.password }))),
+      googleSheetService.saveData(CONFIG.SHEETS.TIMELINE, data.attendance),
+      googleSheetService.saveData(CONFIG.SHEETS.HISTORY, data.logs),
+      googleSheetService.saveData(CONFIG.SHEETS.GUIDE, [{ content: data.guide }]),
+      googleSheetService.saveData(CONFIG.SHEETS.NOTICE, data.notices),
+    ]);
+    return results.every(r => r);
   },
 
   async saveUsers(users: User[]) {

@@ -10,7 +10,7 @@ import {
   getDaysInMonth, formatDate, formatDisplayDate, getCW, formatTime, formatMonthYear, isWeekend
 } from './utils/dateHelpers';
 import { 
-  User, Seat, AttendanceRecord, AuditLog, WorkingMode 
+  User, Seat, AttendanceRecord, AuditLog, WorkingMode, Notice
 } from './types';
 import { 
   dataService 
@@ -20,21 +20,26 @@ import {
 } from './constants';
 import { addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, isSameDay, parseISO, format } from 'date-fns';
 import { enUS } from 'date-fns/locale';
+import { NoticeBoard } from './components/NoticeBoard';
+import { Bell } from 'lucide-react';
+import { CONFIG } from './config';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'timeline' | 'layout' | 'guide' | 'config'>('timeline');
+  const [activeTab, setActiveTab] = useState<'timeline' | 'layout' | 'notice' | 'userinfo' | 'guide' | 'config'>('timeline');
   const [users, setUsers] = useState<User[]>([]);
   const [seats, setSeats] = useState<Seat[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [notices, setNotices] = useState<Notice[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loginData, setLoginData] = useState({ userId: '', password: '' });
   const [showLogin, setShowLogin] = useState(false);
+  const [guideContent, setGuideContent] = useState<string>('');
 
   const isAdmin = currentUser?.role === 'admin';
 
@@ -48,8 +53,18 @@ export default function App() {
       const config = await dataService.fetchConfig();
       setUsers(config.users);
       setSeats(config.seats);
-      setAttendance(dataService.getAttendance());
-      setLogs(dataService.getLogs());
+      
+      const [att, lgs, gd, nts] = await Promise.all([
+        dataService.getAttendance(),
+        dataService.getLogs(),
+        dataService.getGuide(),
+        dataService.getNotices()
+      ]);
+
+      setAttendance(att);
+      setLogs(lgs);
+      setGuideContent(gd);
+      setNotices(nts);
       
       const savedUser = localStorage.getItem('currentUser');
       const savedPass = localStorage.getItem('currentPass');
@@ -90,7 +105,7 @@ export default function App() {
     setLoginData({ userId: '', password: '' });
   };
 
-  const handleSaveAttendance = (userId: string, date: Date, mode: WorkingMode, seatCode?: string, note?: string) => {
+  const handleSaveAttendance = async (userId: string, date: Date, mode: WorkingMode, seatCode?: string, note?: string) => {
     const dateStr = formatDate(date);
     const existingIndex = attendance.findIndex(r => r.userId === userId && r.date === dateStr);
     
@@ -122,7 +137,26 @@ export default function App() {
       before,
       after: newRecord
     });
-    setLogs(dataService.getLogs());
+    const updatedLogs = await dataService.getLogs();
+    setLogs(updatedLogs);
+  };
+
+  const handleSaveNotice = async (title: string, content: string) => {
+    if (!currentUser) return;
+    dataService.saveNotice({
+      title,
+      content,
+      poster: currentUser.name,
+      posterId: currentUser.userId
+    });
+    const updatedNotices = await dataService.getNotices();
+    setNotices(updatedNotices);
+  };
+
+  const handleDeleteNotice = async (id: string) => {
+    dataService.deleteNotice(id);
+    const updatedNotices = await dataService.getNotices();
+    setNotices(updatedNotices);
   };
 
   if (loading) return (
@@ -139,9 +173,9 @@ export default function App() {
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-200 relative overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-50" />
-              <MapPin size={22} className="relative z-10" />
+              <span className="text-lg font-black relative z-10">EJV</span>
               <div className="absolute bottom-0 left-0 right-0 bg-black/40 backdrop-blur-[2px] py-0.5 flex items-center justify-center">
-                <span className="text-[7px] font-black tracking-tighter text-white">EJV4</span>
+                <span className="text-[7px] font-black tracking-tighter text-white">V4</span>
               </div>
             </div>
             <div>
@@ -154,6 +188,8 @@ export default function App() {
             <TabButton active={activeTab === 'timeline'} onClick={() => setActiveTab('timeline')} icon={<CalendarIcon size={16} />} label="Timeline" />
             <TabButton active={activeTab === 'layout'} onClick={() => setActiveTab('layout')} icon={<MapPin size={16} />} label="Seat Map" />
             <TabButton active={activeTab === 'guide'} onClick={() => setActiveTab('guide')} icon={<BookOpen size={16} />} label="Guide & Logs" />
+            <TabButton active={activeTab === 'notice'} onClick={() => setActiveTab('notice')} icon={<Bell size={16} />} label="Notice" />
+            <TabButton active={activeTab === 'userinfo'} onClick={() => setActiveTab('userinfo')} icon={<UserIcon size={16} />} label="User Info" />
             {isAdmin && (
               <TabButton active={activeTab === 'config'} onClick={() => setActiveTab('config')} icon={<Settings size={16} />} label="Configuration" />
             )}
@@ -244,6 +280,15 @@ export default function App() {
           />
         )}
 
+        {activeTab === 'notice' && (
+          <NoticeBoard 
+            notices={notices}
+            currentUser={currentUser}
+            onAddNotice={handleSaveNotice}
+            onDeleteNotice={handleDeleteNotice}
+          />
+        )}
+
         {activeTab === 'config' && isAdmin && (
           <ConfigurationTab 
             users={users} 
@@ -254,10 +299,33 @@ export default function App() {
           />
         )}
 
+        {activeTab === 'userinfo' && (
+          <UserInformationTab 
+            users={users} 
+            currentUser={currentUser} 
+            onUpdateUser={(updatedUser: User) => {
+              const nextUsers = users.map(u => u.userId === updatedUser.userId ? updatedUser : u);
+              setUsers(nextUsers);
+              dataService.saveUsers(nextUsers);
+              if (currentUser?.userId === updatedUser.userId) {
+                setCurrentUser(updatedUser);
+                localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+              }
+            }}
+          />
+        )}
+
         {activeTab === 'guide' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-1">
-              <UserGuide />
+              <UserGuide 
+                isAdmin={currentUser?.role === 'admin'} 
+                content={guideContent}
+                onUpdate={(newContent: string) => {
+                  setGuideContent(newContent);
+                  dataService.saveGuide(newContent);
+                }}
+              />
             </div>
             <div className="lg:col-span-2">
               <AuditLogView logs={logs} />
@@ -265,6 +333,19 @@ export default function App() {
           </div>
         )}
       </main>
+
+      {/* Footer Bar */}
+      <footer className="bg-white border-t border-slate-200 py-4 mt-12">
+        <div className="max-w-[1600px] mx-auto px-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-2 text-slate-500 text-sm font-medium">
+            <CalendarIcon size={16} />
+            <span>Today: {formatDisplayDate(new Date())}</span>
+          </div>
+          <div className="text-slate-500 text-sm font-medium">
+            Author: <span className="text-slate-900 font-bold">{CONFIG.AUTHOR}</span>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
@@ -351,10 +432,10 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="p-1 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-0 bg-slate-50 z-10 w-14 border-r border-slate-200">ID</th>
-                <th className="p-1 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[56px] bg-slate-50 z-10 w-32 border-r border-slate-200">Employee</th>
-                <th className="p-1 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[184px] bg-slate-50 z-10 w-16 border-r border-slate-200">Project</th>
-                <th className="p-1 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[248px] bg-slate-50 z-10 w-14 border-r border-slate-200">Seat</th>
-                <th className="p-1 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[304px] bg-slate-50 z-10 w-20 border-r border-slate-200">Status</th>
+                <th className="p-1 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[56px] bg-slate-50 z-10 w-48 border-r border-slate-200">Employee</th>
+                <th className="p-1 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[248px] bg-slate-50 z-10 w-20 border-r border-slate-200">Project</th>
+                <th className="p-1 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[328px] bg-slate-50 z-10 w-16 border-r border-slate-200">Seat</th>
+                <th className="p-1 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[392px] bg-slate-50 z-10 w-24 border-r border-slate-200">Status</th>
                 {days.map(day => {
                   const isToday = isSameDay(day, new Date());
                   return (
@@ -404,17 +485,17 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
                         <p className="text-[12px] font-bold text-slate-900 truncate leading-none">{user.name}</p>
                       </div>
                     </td>
-                    <td className="p-1 sticky left-[184px] bg-white z-10 border-r border-slate-200">
+                    <td className="p-1 sticky left-[248px] bg-white z-10 border-r border-slate-200">
                       <p className="text-[11px] text-slate-700 font-bold uppercase truncate">{user.project}</p>
                     </td>
-                    <td className="p-1 sticky left-[248px] bg-white z-10 border-r border-slate-200">
+                    <td className="p-1 sticky left-[328px] bg-white z-10 border-r border-slate-200">
                       <p className="text-[11px] font-black truncate" style={{ color: TEAM_COLORS[user.team] || TEAM_COLORS.Default }}>
                         {user.assignedSeat || '-'}
                       </p>
                     </td>
-                    <td className="p-1 sticky left-[304px] bg-white z-10 border-r border-slate-200">
+                    <td className="p-1 sticky left-[392px] bg-white z-10 border-r border-slate-200">
                       <div className="flex items-center gap-1">
-                        <div className={cn("text-[8px] font-bold px-1.5 py-0.5 rounded-full text-center truncate flex-1", statusClass)}>
+                        <div className={cn("text-[9px] font-black px-1.5 py-0.5 rounded-full text-center truncate flex-1", statusClass)}>
                           {statusLabel}
                         </div>
                       </div>
@@ -481,10 +562,20 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
 
       {/* Today Layout Status (Grid Style) */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-        <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-          <Info size={18} className="text-emerald-500" />
-          Today's Layout Status ({formatDisplayDate(new Date())})
-        </h3>
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-lg font-bold flex items-center gap-2">
+            <Info size={18} className="text-emerald-500" />
+            Today's Layout Status ({formatDisplayDate(new Date())})
+          </h3>
+          <div className="flex gap-4">
+            {Object.entries(TEAM_COLORS).filter(([k]) => k !== 'Default' && k !== 'Admin').map(([team, color]) => (
+              <div key={team} className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
+                <span className="text-[10px] font-bold text-slate-500 uppercase">{team}</span>
+              </div>
+            ))}
+          </div>
+        </div>
         
         <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200 relative overflow-hidden">
           <div className="grid grid-cols-11 gap-1 max-w-4xl mx-auto relative">
@@ -839,57 +930,202 @@ function LayoutTab({ seats, attendance, users }: any) {
   );
 }
 
-function UserGuide() {
+function UserGuide({ isAdmin, content, onUpdate }: any) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(content);
+
+  useEffect(() => {
+    setEditContent(content);
+  }, [content]);
+
+  const handleSave = () => {
+    onUpdate(editContent);
+    setIsEditing(false);
+  };
+
   return (
     <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 h-full">
-      <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-        <BookOpen size={22} className="text-emerald-500" />
-        User Guide
-      </h3>
-      <div className="space-y-6">
-        <div>
-          <p className="text-sm font-bold text-slate-800 mb-2">General Rule</p>
-          <ul className="text-xs text-slate-500 space-y-1 list-disc pl-4">
-            <li>Everyone must <strong>book a seat at least 1–2 weeks in advance</strong>.</li>
-            <li>Teams may <strong>utilize available seats from other teams</strong> if needed.</li>
-          </ul>
-        </div>
+      <div className="flex justify-between items-center mb-6">
+        <h3 className="text-xl font-bold flex items-center gap-2">
+          <BookOpen size={22} className="text-emerald-500" />
+          User Guide
+        </h3>
+        {isAdmin && (
+          <button 
+            onClick={() => isEditing ? handleSave() : setIsEditing(true)}
+            className="px-3 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all flex items-center gap-1.5"
+          >
+            {isEditing ? <><Save size={12} /> Save</> : <><Settings size={12} /> Edit</>}
+          </button>
+        )}
+      </div>
 
-        <div>
-          <p className="text-sm font-bold text-slate-800 mb-2">Booking Priority</p>
-          <div className="space-y-3">
-            <div>
-              <p className="text-[11px] font-bold text-rose-600 uppercase">Priority 1 – Your own seat</p>
-              <p className="text-xs text-slate-500">Always book <strong>your assigned seat first</strong>. Check Column G (Priority) for 1st priority.</p>
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-rose-600 uppercase">Priority 2 – Same project team</p>
-              <p className="text-xs text-slate-500">If your seat is not available, check for <strong>free seats within your project team</strong>.</p>
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-rose-600 uppercase">Priority 3 – Other project teams</p>
-              <p className="text-xs text-slate-500">If no seats are available in your team: Check SeatLayout to identify the seat owner/team. <strong>Align with the seat owner first</strong> before booking.</p>
+      {isEditing ? (
+        <textarea 
+          className="w-full h-[400px] p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 resize-none"
+          value={editContent}
+          onChange={(e) => setEditContent(e.target.value)}
+          placeholder="Enter guide content here..."
+        />
+      ) : content ? (
+        <div className="text-xs text-slate-600 whitespace-pre-wrap leading-relaxed">
+          {content}
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <div>
+            <p className="text-sm font-bold text-slate-800 mb-2">General Rule</p>
+            <ul className="text-xs text-slate-500 space-y-1 list-disc pl-4">
+              <li>Everyone must <strong>book a seat at least 1–2 weeks in advance</strong>.</li>
+              <li>Teams may <strong>utilize available seats from other teams</strong> if needed.</li>
+            </ul>
+          </div>
+
+          <div>
+            <p className="text-sm font-bold text-slate-800 mb-2">Booking Priority</p>
+            <div className="space-y-3">
+              <div>
+                <p className="text-[11px] font-bold text-rose-600 uppercase">Priority 1 – Your own seat</p>
+                <p className="text-xs text-slate-500">Always book <strong>your assigned seat first</strong>. Check Column G (Priority) for 1st priority.</p>
+              </div>
+              <div>
+                <p className="text-[11px] font-bold text-rose-600 uppercase">Priority 2 – Same project team</p>
+                <p className="text-xs text-slate-500">If your seat is not available, check for <strong>free seats within your project team</strong>.</p>
+              </div>
+              <div>
+                <p className="text-[11px] font-bold text-rose-600 uppercase">Priority 3 – Other project teams</p>
+                <p className="text-xs text-slate-500">If no seats are available in your team: Check SeatLayout to identify the seat owner/team. <strong>Align with the seat owner first</strong> before booking.</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100">
-          <p className="text-xs font-bold text-amber-700 flex items-center gap-2 mb-2">
-            <Info size={14} />
-            Important Notes
-          </p>
-          <ul className="text-[11px] text-amber-600 space-y-1 list-disc pl-4 font-medium">
-            <li>Do not overwrite other people's bookings.</li>
-            <li>Update the file promptly if your plan changes (WFH / Leave).</li>
-            <li>Always check the file before coming to the office.</li>
-          </ul>
-        </div>
+          <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100">
+            <p className="text-xs font-bold text-amber-700 flex items-center gap-2 mb-2">
+              <Info size={14} />
+              Important Notes
+            </p>
+            <ul className="text-[11px] text-amber-600 space-y-1 list-disc pl-4 font-medium">
+              <li>Do not overwrite other people's bookings.</li>
+              <li>Update the file promptly if your plan changes (WFH / Leave).</li>
+              <li>Always check the file before coming to the office.</li>
+            </ul>
+          </div>
 
-        <div className="pt-4 border-t border-slate-100">
-          <p className="text-[10px] text-slate-400">Contact for improvements:</p>
-          <p className="text-[11px] font-bold text-slate-600">Nguyen Huu Thuyet (MS/EJV4-PS)</p>
+          <div className="pt-4 border-t border-slate-100">
+            <p className="text-[10px] text-slate-400">Contact for improvements:</p>
+            <p className="text-[11px] font-bold text-slate-600">Nguyen Huu Thuyet (MS/EJV4-PS)</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function UserInformationTab({ users, currentUser, onUpdateUser }: any) {
+  const [editMode, setEditMode] = useState(false);
+  const [editedUser, setEditedUser] = useState<User | null>(currentUser);
+
+  useEffect(() => {
+    setEditedUser(currentUser);
+  }, [currentUser]);
+
+  const handleSave = () => {
+    if (editedUser) {
+      onUpdateUser(editedUser);
+      setEditMode(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* My Info */}
+      {currentUser && (
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-bold flex items-center gap-2">
+              <UserIcon size={22} className="text-emerald-500" />
+              My Information
+            </h3>
+            {editMode ? (
+              <div className="flex gap-2">
+                <button onClick={() => setEditMode(false)} className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">Cancel</button>
+                <button onClick={handleSave} className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-all flex items-center gap-2">
+                  <Save size={14} /> Save Changes
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => setEditMode(true)} className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">Edit My Info</button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <InfoField label="User ID" value={currentUser.userId} readOnly />
+            <InfoField label="Name" value={editedUser?.name || ''} onChange={(v: string) => setEditedUser(prev => prev ? {...prev, name: v} : null)} readOnly={!editMode} />
+            <InfoField label="Role" value={editedUser?.role || ''} onChange={(v: string) => setEditedUser(prev => prev ? {...prev, role: v} : null)} readOnly={!editMode} />
+            <InfoField label="Project" value={editedUser?.project || ''} onChange={(v: string) => setEditedUser(prev => prev ? {...prev, project: v} : null)} readOnly={!editMode} />
+            <InfoField label="Phone" value={editedUser?.phone || ''} onChange={(v: string) => setEditedUser(prev => prev ? {...prev, phone: v} : null)} readOnly={!editMode} />
+            <InfoField label="Email" value={editedUser?.email || ''} onChange={(v: string) => setEditedUser(prev => prev ? {...prev, email: v} : null)} readOnly={!editMode} />
+            <InfoField label="Address" value={editedUser?.address || ''} onChange={(v: string) => setEditedUser(prev => prev ? {...prev, address: v} : null)} readOnly={!editMode} />
+            <InfoField label="Other Info" value={editedUser?.otherInfo || ''} onChange={(v: string) => setEditedUser(prev => prev ? {...prev, otherInfo: v} : null)} readOnly={!editMode} className="lg:col-span-3" />
+          </div>
+        </div>
+      )}
+
+      {/* All Members */}
+      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+        <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+          <Sliders size={22} className="text-emerald-500" />
+          Member Directory
+        </h3>
+        <div className="overflow-x-auto rounded-2xl border border-slate-100">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-100">
+                <th className="p-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">User ID</th>
+                <th className="p-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Name</th>
+                <th className="p-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Role</th>
+                <th className="p-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Project</th>
+                <th className="p-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Phone</th>
+                <th className="p-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Email</th>
+                <th className="p-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Address</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {users.map((user: User) => (
+                <tr key={user.userId} className="hover:bg-slate-50 transition-all">
+                  <td className="p-3 text-[12px] font-bold text-slate-600">{user.userId}</td>
+                  <td className="p-3 text-[12px] font-bold text-slate-900">{user.name}</td>
+                  <td className="p-3 text-[12px] font-bold text-slate-500 uppercase">{user.role}</td>
+                  <td className="p-3 text-[12px] font-bold text-slate-700 uppercase">{user.project}</td>
+                  <td className="p-3 text-[12px] text-slate-600">{user.phone || '-'}</td>
+                  <td className="p-3 text-[12px] text-slate-600">{user.email || '-'}</td>
+                  <td className="p-3 text-[12px] text-slate-600 truncate max-w-[200px]">{user.address || '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
+    </div>
+  );
+}
+
+function InfoField({ label, value, onChange, readOnly, className }: any) {
+  return (
+    <div className={cn("space-y-1", className)}>
+      <label className="text-[11px] font-bold text-slate-500 uppercase ml-1">{label}</label>
+      {readOnly ? (
+        <div className="w-full px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-medium text-slate-700">
+          {value || '-'}
+        </div>
+      ) : (
+        <input 
+          type="text" 
+          value={value} 
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+        />
+      )}
     </div>
   );
 }
@@ -1039,6 +1275,7 @@ function ConfigurationTab({ users, onUpdateUsers }: { users: User[], onUpdateUse
               <tr className="bg-slate-50 border-b border-slate-100">
                 <th className="p-3 text-left w-24 text-[11px] font-bold text-slate-500 uppercase tracking-wider">User ID</th>
                 <th className="p-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Name</th>
+                <th className="p-3 text-left w-24 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Role</th>
                 <th className="p-3 text-left w-32 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Project</th>
                 <th className="p-3 text-left w-24 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Seat</th>
               </tr>
@@ -1076,6 +1313,14 @@ function ConfigurationTab({ users, onUpdateUsers }: { users: User[], onUpdateUse
                         value={user.project} 
                         onChange={(e) => handleInputChange(user.originalIndex, 'project', e.target.value)}
                         className="w-full bg-transparent border-none focus:ring-0 text-[12px] font-bold uppercase p-0 text-slate-700"
+                      />
+                    </td>
+                    <td className="p-3 border-r border-slate-50">
+                      <input 
+                        type="text" 
+                        value={user.role} 
+                        onChange={(e) => handleInputChange(user.originalIndex, 'role', e.target.value)}
+                        className="w-full bg-transparent border-none focus:ring-0 text-[12px] font-bold uppercase p-0 text-slate-500"
                       />
                     </td>
                     <td className="p-3">

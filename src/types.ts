@@ -9,7 +9,12 @@ export interface User {
   active: boolean;
   colorTag?: string;
   assignedSeat?: string;
-  role?: 'admin' | 'user';
+  role: string; // Changed from enum-like to string to support "PjM", "PgM", etc.
+  phone?: string;
+  email?: string;
+  address?: string;
+  otherInfo?: string;
+  password?: string; // Added for login sheet integration
 }
 
 export interface Seat {
@@ -38,6 +43,15 @@ export interface AuditLog {
   target: string;
   before: any;
   after: any;
+}
+
+export interface Notice {
+  id: string;
+  title: string;
+  content: string;
+  poster: string;
+  posterId: string;
+  date: string;
 }
 
 export interface AppData {

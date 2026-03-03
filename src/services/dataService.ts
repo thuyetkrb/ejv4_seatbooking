@@ -86,8 +86,117 @@ export const dataService = {
     await googleSheetService.saveData(CONFIG.SHEETS.USERS, users, 'update');
   },
 
-  async updateUser(user: User) {
-    await googleSheetService.saveData(CONFIG.SHEETS.USERS, [user], 'updatebykey', 'userId');
+  async updateUserWithCascade(oldUserId: string, updatedUser: User) {
+    // 1. Update User in Users sheet
+    await googleSheetService.saveData(CONFIG.SHEETS.USERS, [updatedUser], 'updatebykey', 'userId');
+
+    // 2. If UserID or AssignedSeat changed, cascade to other sheets
+    const userIdChanged = oldUserId !== updatedUser.userId;
+    
+    // We need the old user to know the old assigned seat
+    const savedUsers = localStorage.getItem(STORAGE_KEY_USERS);
+    const users: User[] = savedUsers ? JSON.parse(savedUsers) : [];
+    const oldUser = users.find(u => u.userId === oldUserId || u.userId === updatedUser.userId);
+    const seatChanged = oldUser && oldUser.assignedSeat !== updatedUser.assignedSeat;
+
+    if (userIdChanged || seatChanged) {
+      console.log(`Cascading updates for ${oldUserId}...`);
+      
+      // Fetch all data that might need updating
+      const [attendance, logs] = await Promise.all([
+        this.getAttendance(),
+        this.getLogs()
+      ]);
+
+      let attendanceUpdated = false;
+      const updatedAttendance = attendance.map(record => {
+        let changed = false;
+        let newRecord = { ...record };
+        
+        if (userIdChanged && record.userId === oldUserId) {
+          newRecord.userId = updatedUser.userId;
+          changed = true;
+        }
+        
+        // If seat changed, update records that were using the old assigned seat
+        if (seatChanged && record.userId === (userIdChanged ? updatedUser.userId : oldUserId) && record.seatCode === oldUser.assignedSeat) {
+          newRecord.seatCode = updatedUser.assignedSeat;
+          changed = true;
+        }
+
+        if (changed) attendanceUpdated = true;
+        return newRecord;
+      });
+
+      if (attendanceUpdated) {
+        await this.saveAttendance(updatedAttendance);
+      }
+
+      // Update Notices
+      let noticesUpdated = false;
+      const notices = await this.getNotices();
+      const updatedNotices = notices.map(notice => {
+        if (userIdChanged && notice.posterId === oldUserId) {
+          noticesUpdated = true;
+          return { ...notice, posterId: updatedUser.userId };
+        }
+        return notice;
+      });
+
+      if (noticesUpdated) {
+        localStorage.setItem(STORAGE_KEY_NOTICES, JSON.stringify(updatedNotices));
+        await googleSheetService.saveData(CONFIG.SHEETS.NOTICE, updatedNotices);
+      }
+
+      // Update Logs
+      let logsUpdated = false;
+      const updatedLogs = logs.map(log => {
+        let logStr = JSON.stringify(log);
+        if (userIdChanged) {
+          // Replace oldUserId with updatedUser.userId in the whole log object (including JSON fields)
+          const regex = new RegExp(`"${oldUserId}"`, 'g');
+          if (logStr.includes(`"${oldUserId}"`)) {
+            logStr = logStr.replace(regex, `"${updatedUser.userId}"`);
+            logsUpdated = true;
+          }
+        }
+        return logsUpdated ? JSON.parse(logStr) : log;
+      });
+
+      if (logsUpdated) {
+        localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(updatedLogs));
+        await googleSheetService.saveData(CONFIG.SHEETS.HISTORY, updatedLogs.map(l => ({
+          id: l.id,
+          time: l.time,
+          actor: l.actor,
+          action: l.action,
+          target: l.target,
+          before_json: JSON.stringify(l.before),
+          after_json: JSON.stringify(l.after)
+        })), 'update');
+      }
+    }
+    
+    // Update local storage
+    const newUsers = users.map(u => (u.userId === oldUserId || u.userId === updatedUser.userId) ? updatedUser : u);
+    localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(newUsers));
+  },
+
+  async saveUsersWithCascade(oldUsers: User[], newUsers: User[]) {
+    // Find users that changed UserID or AssignedSeat
+    for (const newUser of newUsers) {
+      const oldUser = oldUsers.find(u => u.userId === newUser.userId) || 
+                      oldUsers.find(u => u.name === newUser.name && u.team === newUser.team);
+      
+      if (oldUser) {
+        if (oldUser.userId !== newUser.userId || oldUser.assignedSeat !== newUser.assignedSeat) {
+          await this.updateUserWithCascade(oldUser.userId, newUser);
+        }
+      }
+    }
+    
+    // Finally save the whole users list
+    await this.saveUsers(newUsers);
   },
 
   async changePassword(user: User, newPassword: string) {

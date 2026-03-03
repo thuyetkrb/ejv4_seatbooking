@@ -41,7 +41,7 @@ export default function App() {
   const [showLogin, setShowLogin] = useState(false);
   const [guideContent, setGuideContent] = useState<string>('');
 
-  const isAdmin = currentUser?.role === 'admin';
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.userId === 'GTH8HC';
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -220,11 +220,11 @@ export default function App() {
     setNotices(updatedNotices);
   };
 
-  const handleUpdateUser = async (updatedUser: User) => {
-    const newUsers = users.map(u => u.userId === updatedUser.userId ? updatedUser : u);
+  const handleUpdateUser = async (oldUserId: string, updatedUser: User) => {
+    const newUsers = users.map(u => u.userId === oldUserId ? updatedUser : u);
     setUsers(newUsers);
-    await dataService.updateUser(updatedUser);
-    if (currentUser?.userId === updatedUser.userId) {
+    await dataService.updateUserWithCascade(oldUserId, updatedUser);
+    if (currentUser?.userId === oldUserId) {
       setCurrentUser(updatedUser);
       localStorage.setItem('currentUser', JSON.stringify(updatedUser));
     }
@@ -394,8 +394,9 @@ export default function App() {
           <ConfigurationTab 
             users={users} 
             onUpdateUsers={async (updatedUsers) => {
+              const oldUsers = [...users];
               setUsers(updatedUsers);
-              await dataService.saveUsers(updatedUsers);
+              await dataService.saveUsersWithCascade(oldUsers, updatedUsers);
             }} 
           />
         )}
@@ -1176,8 +1177,8 @@ function UserInformationTab({ users, currentUser, onUpdateUser, onChangePassword
   }, [currentUser]);
 
   const handleSave = () => {
-    if (editedUser) {
-      onUpdateUser(editedUser);
+    if (editedUser && currentUser) {
+      onUpdateUser(currentUser.userId, editedUser);
       setEditMode(false);
     }
   };

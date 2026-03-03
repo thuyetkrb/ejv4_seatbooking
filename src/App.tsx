@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Search, Filter, ChevronLeft, ChevronRight, 
   Calendar as CalendarIcon, User as UserIcon, 
-  MapPin, Info, History, BookOpen, LogOut, Save, X, Settings, Sliders
+  MapPin, Info, History, BookOpen, LogOut, Save, X, Settings, Sliders,
+  Lock, AlertCircle, CheckCircle
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -159,6 +160,33 @@ export default function App() {
     setNotices(updatedNotices);
   };
 
+  const handleUpdateUser = async (updatedUser: User) => {
+    const newUsers = users.map(u => u.userId === updatedUser.userId ? updatedUser : u);
+    setUsers(newUsers);
+    await dataService.saveUsers(newUsers);
+    if (currentUser?.userId === updatedUser.userId) {
+      setCurrentUser(updatedUser);
+      localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+    }
+  };
+
+  const handleChangePassword = async (newPassword: string) => {
+    if (!currentUser) return;
+    const success = await dataService.changePassword(currentUser.userId, newPassword);
+    if (success) {
+      const updatedUser = { ...currentUser, password: newPassword };
+      setCurrentUser(updatedUser);
+      localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+      localStorage.setItem('currentPass', newPassword);
+      
+      // Refresh users list to reflect change in memory
+      const config = await dataService.fetchConfig();
+      setUsers(config.users);
+      return true;
+    }
+    return false;
+  };
+
   if (loading) return (
     <div className="flex items-center justify-center h-screen bg-[#f5f5f5]">
       <div className="animate-pulse text-slate-500 font-medium">Loading data...</div>
@@ -173,10 +201,7 @@ export default function App() {
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-200 relative overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-50" />
-              <span className="text-lg font-black relative z-10">EJV</span>
-              <div className="absolute bottom-0 left-0 right-0 bg-black/40 backdrop-blur-[2px] py-0.5 flex items-center justify-center">
-                <span className="text-[7px] font-black tracking-tighter text-white">V4</span>
-              </div>
+              <span className="text-lg font-black relative z-10">EJV4</span>
             </div>
             <div>
               <h1 className="font-bold text-lg tracking-tight text-slate-900">Attendance Seat Booking</h1>
@@ -292,9 +317,9 @@ export default function App() {
         {activeTab === 'config' && isAdmin && (
           <ConfigurationTab 
             users={users} 
-            onUpdateUsers={(updatedUsers) => {
+            onUpdateUsers={async (updatedUsers) => {
               setUsers(updatedUsers);
-              dataService.saveUsers(updatedUsers);
+              await dataService.saveUsers(updatedUsers);
             }} 
           />
         )}
@@ -303,15 +328,8 @@ export default function App() {
           <UserInformationTab 
             users={users} 
             currentUser={currentUser} 
-            onUpdateUser={(updatedUser: User) => {
-              const nextUsers = users.map(u => u.userId === updatedUser.userId ? updatedUser : u);
-              setUsers(nextUsers);
-              dataService.saveUsers(nextUsers);
-              if (currentUser?.userId === updatedUser.userId) {
-                setCurrentUser(updatedUser);
-                localStorage.setItem('currentUser', JSON.stringify(updatedUser));
-              }
-            }}
+            onUpdateUser={handleUpdateUser}
+            onChangePassword={handleChangePassword}
           />
         )}
 
@@ -1021,9 +1039,13 @@ function UserGuide({ isAdmin, content, onUpdate }: any) {
   );
 }
 
-function UserInformationTab({ users, currentUser, onUpdateUser }: any) {
+function UserInformationTab({ users, currentUser, onUpdateUser, onChangePassword }: any) {
   const [editMode, setEditMode] = useState(false);
   const [editedUser, setEditedUser] = useState<User | null>(currentUser);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
+  const [passError, setPassError] = useState('');
+  const [passSuccess, setPassSuccess] = useState(false);
 
   useEffect(() => {
     setEditedUser(currentUser);
@@ -1033,6 +1055,40 @@ function UserInformationTab({ users, currentUser, onUpdateUser }: any) {
     if (editedUser) {
       onUpdateUser(editedUser);
       setEditMode(false);
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    setPassError('');
+    setPassSuccess(false);
+
+    if (!passwords.current || !passwords.new || !passwords.confirm) {
+      setPassError('Please fill in all fields.');
+      return;
+    }
+
+    if (passwords.current !== currentUser.password) {
+      setPassError('Current password is incorrect.');
+      return;
+    }
+
+    if (passwords.new !== passwords.confirm) {
+      setPassError('New passwords do not match.');
+      return;
+    }
+
+    if (passwords.new.length < 6) {
+      setPassError('Password must be at least 6 characters.');
+      return;
+    }
+
+    const success = await onChangePassword(passwords.new);
+    if (success) {
+      setPassSuccess(true);
+      setPasswords({ current: '', new: '', confirm: '' });
+      setTimeout(() => setShowPasswordModal(false), 2000);
+    } else {
+      setPassError('Failed to update password. Please try again.');
     }
   };
 
@@ -1046,16 +1102,24 @@ function UserInformationTab({ users, currentUser, onUpdateUser }: any) {
               <UserIcon size={22} className="text-emerald-500" />
               My Information
             </h3>
-            {editMode ? (
-              <div className="flex gap-2">
-                <button onClick={() => setEditMode(false)} className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">Cancel</button>
-                <button onClick={handleSave} className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-all flex items-center gap-2">
-                  <Save size={14} /> Save Changes
-                </button>
-              </div>
-            ) : (
-              <button onClick={() => setEditMode(true)} className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">Edit My Info</button>
-            )}
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setShowPasswordModal(true)} 
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-50 text-amber-600 hover:bg-amber-100 transition-all flex items-center gap-2"
+              >
+                <Lock size={14} /> Change Password
+              </button>
+              {editMode ? (
+                <div className="flex gap-2">
+                  <button onClick={() => setEditMode(false)} className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">Cancel</button>
+                  <button onClick={handleSave} className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-all flex items-center gap-2">
+                    <Save size={14} /> Save Changes
+                  </button>
+                </div>
+              ) : (
+                <button onClick={() => setEditMode(true)} className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">Edit My Info</button>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1067,6 +1131,80 @@ function UserInformationTab({ users, currentUser, onUpdateUser }: any) {
             <InfoField label="Email" value={editedUser?.email || ''} onChange={(v: string) => setEditedUser(prev => prev ? {...prev, email: v} : null)} readOnly={!editMode} />
             <InfoField label="Address" value={editedUser?.address || ''} onChange={(v: string) => setEditedUser(prev => prev ? {...prev, address: v} : null)} readOnly={!editMode} />
             <InfoField label="Other Info" value={editedUser?.otherInfo || ''} onChange={(v: string) => setEditedUser(prev => prev ? {...prev, otherInfo: v} : null)} readOnly={!editMode} className="lg:col-span-3" />
+          </div>
+        </div>
+      )}
+
+      {/* Password Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 animate-in zoom-in duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold flex items-center gap-2">
+                <Lock size={22} className="text-amber-500" />
+                Change Password
+              </h3>
+              <button onClick={() => setShowPasswordModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-slate-500 uppercase ml-1">Current Password</label>
+                <input 
+                  type="password" 
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                  value={passwords.current}
+                  onChange={(e) => setPasswords(prev => ({ ...prev, current: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-slate-500 uppercase ml-1">New Password</label>
+                <input 
+                  type="password" 
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                  value={passwords.new}
+                  onChange={(e) => setPasswords(prev => ({ ...prev, new: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-slate-500 uppercase ml-1">Confirm New Password</label>
+                <input 
+                  type="password" 
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                  value={passwords.confirm}
+                  onChange={(e) => setPasswords(prev => ({ ...prev, confirm: e.target.value }))}
+                />
+              </div>
+
+              {passError && (
+                <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 text-xs font-medium flex items-center gap-2">
+                  <AlertCircle size={14} /> {passError}
+                </div>
+              )}
+
+              {passSuccess && (
+                <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-600 text-xs font-medium flex items-center gap-2">
+                  <CheckCircle size={14} /> Password updated successfully!
+                </div>
+              )}
+
+              <div className="pt-4 flex gap-3">
+                <button 
+                  onClick={() => setShowPasswordModal(false)}
+                  className="flex-1 py-3 rounded-xl text-sm font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handlePasswordChange}
+                  className="flex-1 py-3 rounded-xl text-sm font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100"
+                >
+                  Update Password
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

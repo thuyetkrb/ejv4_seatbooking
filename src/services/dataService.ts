@@ -110,9 +110,27 @@ export const dataService = {
     return { users, seats };
   },
 
-  saveUsers(users: User[]) {
+  async saveUsers(users: User[]) {
     localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(users));
-    // In a real app, we would sync back to Google Sheets here
+    await googleSheetService.saveData(CONFIG.SHEETS.USER_INFO, users);
+  },
+
+  async changePassword(userId: string, newPassword: string) {
+    const savedUsers = localStorage.getItem(STORAGE_KEY_USERS);
+    let users: User[] = savedUsers ? JSON.parse(savedUsers) : MOCK_USERS;
+    
+    const userIndex = users.findIndex(u => u.userId === userId);
+    if (userIndex > -1) {
+      users[userIndex].password = newPassword;
+      localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(users));
+      
+      // Sync to UserInfo sheet (which contains password in our schema)
+      // and also potentially a dedicated Login sheet if preferred
+      await googleSheetService.saveData(CONFIG.SHEETS.USER_INFO, users);
+      await googleSheetService.saveData(CONFIG.SHEETS.LOGIN, users.map(u => ({ userId: u.userId, password: u.password })));
+      return true;
+    }
+    return false;
   },
 
   async getAttendance(): Promise<AttendanceRecord[]> {
@@ -132,8 +150,9 @@ export const dataService = {
     return data ? JSON.parse(data) : [];
   },
 
-  saveAttendance(records: AttendanceRecord[]) {
+  async saveAttendance(records: AttendanceRecord[]) {
     localStorage.setItem(STORAGE_KEY_ATTENDANCE, JSON.stringify(records));
+    await googleSheetService.saveData(CONFIG.SHEETS.TIMELINE, records);
   },
 
   async getLogs(): Promise<AuditLog[]> {
@@ -153,7 +172,7 @@ export const dataService = {
     return data ? JSON.parse(data) : [];
   },
 
-  addLog(log: Omit<AuditLog, 'id' | 'time'>) {
+  async addLog(log: Omit<AuditLog, 'id' | 'time'>) {
     const data = localStorage.getItem(STORAGE_KEY_LOGS);
     const logs = data ? JSON.parse(data) : [];
     const newLog: AuditLog = {
@@ -161,7 +180,9 @@ export const dataService = {
       id: Math.random().toString(36).substr(2, 9),
       time: new Date().toISOString(),
     };
-    localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify([newLog, ...logs].slice(0, 100)));
+    const updatedLogs = [newLog, ...logs].slice(0, 100);
+    localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(updatedLogs));
+    await googleSheetService.saveData(CONFIG.SHEETS.HISTORY, updatedLogs);
   },
 
   async getGuide(): Promise<string> {
@@ -172,8 +193,9 @@ export const dataService = {
     return localStorage.getItem(STORAGE_KEY_GUIDE) || '';
   },
 
-  saveGuide(content: string) {
+  async saveGuide(content: string) {
     localStorage.setItem(STORAGE_KEY_GUIDE, content);
+    await googleSheetService.saveData(CONFIG.SHEETS.GUIDE, [{ content }]);
   },
 
   async getNotices(): Promise<Notice[]> {
@@ -195,7 +217,7 @@ export const dataService = {
     return notices.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   },
 
-  saveNotice(notice: Omit<Notice, 'id' | 'date'>) {
+  async saveNotice(notice: Omit<Notice, 'id' | 'date'>) {
     const data = localStorage.getItem(STORAGE_KEY_NOTICES);
     const notices = data ? JSON.parse(data) : [];
     const newNotice: Notice = {
@@ -203,12 +225,16 @@ export const dataService = {
       id: Math.random().toString(36).substr(2, 9),
       date: new Date().toISOString(),
     };
-    localStorage.setItem(STORAGE_KEY_NOTICES, JSON.stringify([newNotice, ...notices]));
+    const updatedNotices = [newNotice, ...notices];
+    localStorage.setItem(STORAGE_KEY_NOTICES, JSON.stringify(updatedNotices));
+    await googleSheetService.saveData(CONFIG.SHEETS.NOTICE, updatedNotices);
   },
 
-  deleteNotice(id: string) {
+  async deleteNotice(id: string) {
     const data = localStorage.getItem(STORAGE_KEY_NOTICES);
     const notices = data ? JSON.parse(data) : [];
-    localStorage.setItem(STORAGE_KEY_NOTICES, JSON.stringify(notices.filter((n: Notice) => n.id !== id)));
+    const updatedNotices = notices.filter((n: Notice) => n.id !== id);
+    localStorage.setItem(STORAGE_KEY_NOTICES, JSON.stringify(updatedNotices));
+    await googleSheetService.saveData(CONFIG.SHEETS.NOTICE, updatedNotices);
   }
 };

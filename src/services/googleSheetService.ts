@@ -14,6 +14,32 @@ export const googleSheetService = {
       return [];
     }
   },
+  
+  async saveData(sheetName: string, data: any): Promise<boolean> {
+    if (!CONFIG.GOOGLE_SCRIPT_URL) {
+      console.warn('GOOGLE_SCRIPT_URL is not set. Data will not be saved to Google Sheets.');
+      return false;
+    }
+
+    try {
+      const response = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors', // Google Apps Script requires no-cors for simple POST
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sheetName,
+          action: 'update',
+          data
+        }),
+      });
+      return true;
+    } catch (error) {
+      console.error(`Error saving to sheet ${sheetName}:`, error);
+      return false;
+    }
+  },
 
   parseCSV(csvText: string): any[] {
     const lines = csvText.split('\n');

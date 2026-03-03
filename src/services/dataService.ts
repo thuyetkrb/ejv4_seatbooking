@@ -8,50 +8,6 @@ const STORAGE_KEY_NOTICES = 'seat_dashboard_notices';
 const STORAGE_KEY_USERS = 'seat_dashboard_users';
 const STORAGE_KEY_GUIDE = 'seat_dashboard_guide';
 
-const RAW_DATA = [
-  { project: 'PgM', name: 'Park Kwang', mode: 'WFO', group: 'EJV4', seat: 'D1', role: 'PgM' },
-  { project: 'Honda', name: 'Bach Mai Tuyet Nhu', mode: 'WFO', group: 'EJV4', seat: 'D18', role: 'user' },
-  { project: 'Honda', name: 'Huynh Minh Sang', mode: 'Hybrid', group: 'EJV4', seat: 'D13', role: 'user' },
-  { project: 'Honda', name: 'Ngo Huu Dat', mode: 'WFO', group: 'EJV5', seat: 'D17', role: 'user' },
-  { project: 'Honda', name: 'Nguyen Huu Thuyet', mode: 'WFO', group: 'EJV4', seat: 'D12', role: 'admin' },
-  { project: 'Honda', name: 'Nguyen Quoc Bao', mode: 'Hybrid', group: 'EJV4', seat: 'D19', role: 'user' },
-  { project: 'Honda', name: 'Dinh Viet Thuan', mode: 'WFO', group: 'EJV5', seat: 'D24', role: 'user' },
-  { project: 'Honda', name: 'Pham Thi Phuong Loan', mode: 'WFO', group: 'EJV5', seat: 'D20', role: 'user' },
-  { project: 'Honda', name: 'Ta Minh Chi', mode: 'Hybrid', group: 'EJV5', seat: 'D11', role: 'user' },
-  { project: 'Honda', name: 'Ton Tran Gia Hung', mode: 'WFO', group: 'EJV5', seat: 'D13', role: 'user' },
-  { project: 'Honda', name: 'Huynh Ngoc Minh Quan', mode: 'Hybrid', group: 'EJV4', seat: 'D19', role: 'user' },
-  { project: 'Nissan', name: 'Nguyen Xuan My', mode: '', group: 'EJV4', seat: 'D14', role: 'user' },
-  { project: 'Nissan', name: 'Nguyen Thanh Phong', mode: '', group: 'EJV1', seat: 'D23', role: 'user' },
-  { project: 'Nissan', name: 'Nguyen Buu Thach', mode: '', group: 'EJV5', seat: 'D15', role: 'user' },
-  { project: 'Nissan', name: 'Hoang Thanh Tu', mode: '', group: 'EJV4', seat: 'D23', role: 'user' },
-  { project: 'FFV', name: 'Ngo Ton Quyen', mode: '', group: 'EJV4', seat: 'D2', role: 'user' },
-  { project: 'FFV', name: 'Do Quoc Hung', mode: 'WFO', group: 'EJV4', seat: 'D4', role: 'user' },
-  { project: 'FFV', name: 'Giang Kim Thach', mode: 'Hybrid', group: 'EJV4', seat: 'D22', role: 'user' },
-  { project: 'FFV', name: 'Nguyen Ngoc Son', mode: '', group: 'EJV5', seat: 'D22', role: 'user' },
-  { project: 'FFV', name: 'Vo Quoc Khanh', mode: '', group: 'EJV5', seat: 'D5', role: 'user' },
-  { project: 'FFV', name: 'Huynh Trung Nguyen', mode: '', group: 'EJV5', seat: 'D3', role: 'user' },
-  { project: 'FFV', name: 'Tran Ba Huy', mode: '', group: 'EJV5', seat: 'D10', role: 'user' },
-  { project: 'FFV', name: 'Nguyen Le Nguyen', mode: '', group: 'EJV5', seat: 'D16', role: 'user' },
-  { project: 'VCCU', name: 'Nguyen Ngoc Duy', mode: 'WFO', group: 'EJV4', seat: 'D6', role: 'user' },
-  { project: 'VCCU', name: 'Mai Hong Sang', mode: '', group: 'EJV4', seat: 'D8', role: 'user' },
-  { project: 'VCCU', name: 'Huynh Giao Con', mode: '', group: 'PS-CS', seat: 'D9', role: 'user' },
-  { project: 'VCCU', name: 'Lam Quoc Thinh', mode: '', group: 'EJV4', seat: 'D7', role: 'user' },
-  { project: 'VCCU', name: 'Vo Quang Huy', mode: '', group: 'EJV5', seat: 'D21', role: 'user' },
-  { project: 'VCCU', name: 'Pham Anh Duy', mode: 'WFO', group: 'EJV5', seat: 'D21', role: 'user' },
-];
-
-const MOCK_USERS: User[] = RAW_DATA.map((item, index) => ({
-  userId: item.name === 'Nguyen Huu Thuyet' ? 'GTH8HC' : `U${(index + 1).toString().padStart(3, '0')}`,
-  name: item.name,
-  team: item.project,
-  project: item.project,
-  group: item.group,
-  active: true,
-  assignedSeat: item.seat,
-  role: item.role,
-  password: 'password123'
-}));
-
 const SEAT_LAYOUT_CONFIG = [
   { code: 'EPS-1', zone: 'EPS', r: 0, c: 8 }, { code: 'EPS-2', zone: 'EPS', r: 0, c: 9 }, { code: 'EPS-3', zone: 'EPS', r: 0, c: 10 },
   { code: 'D4', zone: 'D', r: 2, c: 8 }, { code: 'D5', zone: 'D', r: 2, c: 9 }, { code: 'EPS-4', zone: 'EPS', r: 2, c: 10 },
@@ -76,16 +32,12 @@ const MOCK_SEATS: Seat[] = SEAT_LAYOUT_CONFIG.map(s => ({
 export const dataService = {
   async fetchConfig(): Promise<{ users: User[]; seats: Seat[] }> {
     // Try to fetch from Google Sheets first
-    const [sheetLogin, sheetUsers] = await Promise.all([
-      googleSheetService.fetchSheetData(CONFIG.SHEETS.LOGIN),
-      googleSheetService.fetchSheetData(CONFIG.SHEETS.USER_INFO)
-    ]);
+    const sheetUsers = await googleSheetService.fetchSheetData(CONFIG.SHEETS.USERS);
     
     let users: User[] = [];
     
-    // Prioritize Login sheet as it contains the most critical info (passwords + user data)
-    if (sheetLogin.length > 0) {
-      users = sheetLogin.map(u => ({
+    if (sheetUsers.length > 0) {
+      users = sheetUsers.map(u => ({
         userId: u.userId || u.UserID || '',
         name: u.name || u.Name || '',
         team: u.team || u.Team || '',
@@ -95,28 +47,10 @@ export const dataService = {
         assignedSeat: u.assignedSeat || u.AssignedSeat || '',
         role: u.role || u.Role || 'user',
         password: u.password || u.Password || 'password123',
-        // Merge extra info from UserInfo sheet if available
-        ...(sheetUsers.find(su => (su.userId || su.UserID) === (u.userId || u.UserID)) || {})
-      }));
-    } else if (sheetUsers.length > 0) {
-      users = sheetUsers.map(u => ({
-        userId: u.userId || u.UserID || '',
-        name: u.name || u.Name || '',
-        team: u.team || u.Team || '',
-        project: u.project || u.Project || '',
-        group: u.group || u.Group || '',
-        active: true,
-        assignedSeat: u.assignedSeat || u.AssignedSeat || '',
-        role: u.role || u.Role || 'user',
         phone: u.phone || u.Phone || '',
         email: u.email || u.Email || '',
-        address: u.address || u.Address || '',
-        otherInfo: u.otherInfo || u.OtherInfo || '',
-        password: u.password || u.Password || 'password123'
+        address: u.address || u.Address || ''
       }));
-    } else {
-      // If sheet is empty, use mock data
-      users = MOCK_USERS;
     }
 
     return { users, seats: MOCK_SEATS };
@@ -130,20 +64,17 @@ export const dataService = {
     notices: Notice[];
   }) {
     const results = await Promise.all([
-      googleSheetService.saveData(CONFIG.SHEETS.USER_INFO, data.users),
-      googleSheetService.saveData(CONFIG.SHEETS.LOGIN, data.users.map(u => ({
-        userId: u.userId,
-        name: u.name,
-        team: u.team,
-        project: u.project,
-        group: u.group,
-        active: u.active,
-        assignedSeat: u.assignedSeat,
-        role: u.role,
-        password: u.password
+      googleSheetService.saveData(CONFIG.SHEETS.USERS, data.users),
+      googleSheetService.saveData(CONFIG.SHEETS.ATTENDANCE, data.attendance),
+      googleSheetService.saveData(CONFIG.SHEETS.HISTORY, data.logs.map(l => ({
+        id: l.id,
+        time: l.time,
+        actor: l.actor,
+        action: l.action,
+        target: l.target,
+        before_json: JSON.stringify(l.before),
+        after_json: JSON.stringify(l.after)
       }))),
-      googleSheetService.saveData(CONFIG.SHEETS.TIMELINE, data.attendance),
-      googleSheetService.saveData(CONFIG.SHEETS.HISTORY, data.logs),
       googleSheetService.saveData(CONFIG.SHEETS.GUIDE, [{ content: data.guide }]),
       googleSheetService.saveData(CONFIG.SHEETS.NOTICE, data.notices),
     ]);
@@ -152,50 +83,34 @@ export const dataService = {
 
   async saveUsers(users: User[]) {
     localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(users));
-    await googleSheetService.saveData(CONFIG.SHEETS.USER_INFO, users);
-    await googleSheetService.saveData(CONFIG.SHEETS.LOGIN, users.map(u => ({
-      userId: u.userId,
-      name: u.name,
-      team: u.team,
-      project: u.project,
-      group: u.group,
-      active: u.active,
-      assignedSeat: u.assignedSeat,
-      role: u.role,
-      password: u.password
-    })));
+    await googleSheetService.saveData(CONFIG.SHEETS.USERS, users, 'update');
   },
 
-  async changePassword(userId: string, newPassword: string) {
-    const savedUsers = localStorage.getItem(STORAGE_KEY_USERS);
-    let users: User[] = savedUsers ? JSON.parse(savedUsers) : MOCK_USERS;
+  async updateUser(user: User) {
+    await googleSheetService.saveData(CONFIG.SHEETS.USERS, [user], 'updatebykey', 'userId');
+  },
+
+  async changePassword(user: User, newPassword: string) {
+    const updatedUser = { ...user, password: newPassword };
     
-    const userIndex = users.findIndex(u => u.userId === userId);
-    if (userIndex > -1) {
-      users[userIndex].password = newPassword;
-      localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(users));
-      
-      await googleSheetService.saveData(CONFIG.SHEETS.USER_INFO, users);
-      await googleSheetService.saveData(CONFIG.SHEETS.LOGIN, users.map(u => ({
-        userId: u.userId,
-        name: u.name,
-        team: u.team,
-        project: u.project,
-        group: u.group,
-        active: u.active,
-        assignedSeat: u.assignedSeat,
-        role: u.role,
-        password: u.password
-      })));
-      return true;
+    // Update local storage if possible
+    const savedUsers = localStorage.getItem(STORAGE_KEY_USERS);
+    if (savedUsers) {
+      let users: User[] = JSON.parse(savedUsers);
+      const idx = users.findIndex(u => u.userId === user.userId);
+      if (idx > -1) {
+        users[idx].password = newPassword;
+        localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(users));
+      }
     }
-    return false;
+    
+    return await googleSheetService.saveData(CONFIG.SHEETS.USERS, [updatedUser], 'updatebykey', 'userId');
   },
 
   async getAttendance(): Promise<AttendanceRecord[]> {
-    const sheetTimeline = await googleSheetService.fetchSheetData(CONFIG.SHEETS.TIMELINE);
-    if (sheetTimeline.length > 0) {
-      return sheetTimeline.map(r => ({
+    const sheetAttendance = await googleSheetService.fetchSheetData(CONFIG.SHEETS.ATTENDANCE);
+    if (sheetAttendance.length > 0) {
+      return sheetAttendance.map(r => ({
         date: r.date || r.Date || '',
         userId: r.userId || r.UserID || '',
         mode: (r.mode || r.Mode || 'WFO') as any,
@@ -211,7 +126,7 @@ export const dataService = {
 
   async saveAttendance(records: AttendanceRecord[]) {
     localStorage.setItem(STORAGE_KEY_ATTENDANCE, JSON.stringify(records));
-    await googleSheetService.saveData(CONFIG.SHEETS.TIMELINE, records);
+    await googleSheetService.saveData(CONFIG.SHEETS.ATTENDANCE, records);
   },
 
   async getLogs(): Promise<AuditLog[]> {
@@ -223,8 +138,8 @@ export const dataService = {
         actor: l.actor || l.Actor || '',
         action: (l.action || l.Action || 'CHANGE_MODE') as any,
         target: l.target || l.Target || '',
-        before: l.before ? JSON.parse(l.before) : null,
-        after: l.after ? JSON.parse(l.after) : null
+        before: (l.before_json || l.Before_json) ? JSON.parse(l.before_json || l.Before_json) : null,
+        after: (l.after_json || l.After_json) ? JSON.parse(l.after_json || l.After_json) : null
       }));
     }
     const data = localStorage.getItem(STORAGE_KEY_LOGS);
@@ -241,7 +156,16 @@ export const dataService = {
     };
     const updatedLogs = [newLog, ...logs].slice(0, 100);
     localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(updatedLogs));
-    await googleSheetService.saveData(CONFIG.SHEETS.HISTORY, updatedLogs);
+    
+    await googleSheetService.saveData(CONFIG.SHEETS.HISTORY, [{
+      id: newLog.id,
+      time: newLog.time,
+      actor: newLog.actor,
+      action: newLog.action,
+      target: newLog.target,
+      before_json: JSON.stringify(newLog.before),
+      after_json: JSON.stringify(newLog.after)
+    }], 'append');
   },
 
   async getGuide(): Promise<string> {

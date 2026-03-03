@@ -4,12 +4,10 @@ export const CONFIG = {
   GOOGLE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwOZQlnTGc7sabDyuh7b_PtCUOvG0VIttKHcTX41zoms1Nntt6fNbIunVgHHzAz7jNO/exec', // User needs to provide this after deploying Google Apps Script
   AUTHOR: 'Nguyen Huu Thuyet (EJV4)',
   SHEETS: {
-    LOGIN: 'Login',
-    TIMELINE: 'Timeline',
+    USERS: 'Users',
+    ATTENDANCE: 'Attendance',
     HISTORY: 'HistoryLog',
-    GUIDE: 'UserGuide',
     NOTICE: 'Notice',
-    USER_INFO: 'UserInfo',
-    CONFIG: 'Configuration'
+    GUIDE: 'UserGuide'
   }
 };

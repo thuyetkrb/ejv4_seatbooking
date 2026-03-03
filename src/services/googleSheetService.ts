@@ -35,23 +35,24 @@ export const googleSheetService = {
     }
   },
   
-  async saveData(sheetName: string, data: any): Promise<boolean> {
+  async saveData(sheetName: string, data: any, action: 'update' | 'append' | 'updatebykey' = 'update', keyName?: string): Promise<boolean> {
     if (!CONFIG.GOOGLE_SCRIPT_URL) {
       console.warn('GOOGLE_SCRIPT_URL is not set. Data will not be saved to Google Sheets.');
       return false;
     }
 
     try {
-      console.log(`Saving data to sheet: ${sheetName}`, data);
+      console.log(`Saving data to sheet: ${sheetName} with action: ${action}`, data);
       await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
         method: 'POST',
-        mode: 'no-cors', // Google Apps Script requires no-cors for simple POST from browser
+        mode: 'no-cors',
         headers: {
           'Content-Type': 'text/plain',
         },
         body: JSON.stringify({
           sheetName,
-          action: 'update',
+          action,
+          keyName,
           data
         }),
       });

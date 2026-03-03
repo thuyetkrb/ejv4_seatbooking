@@ -67,21 +67,8 @@ export default function App() {
       setGuideContent(gd);
       setNotices(nts);
 
-      // Requirement: If Google Sheets was empty (no users found), save mock data to it
-      // We check if users came from MOCK_USERS (which happens in dataService.fetchConfig if sheet is empty)
-      // Actually, let's check if the sheet was empty by looking at the fetch result.
-      // For simplicity, if we have users but no attendance/notices in sheets, we might want to sync.
-      // But specifically: "Trường hợp google chưa có data, thì ở lần đầu tiên mở web, lưu tất cả dữ liệu mẫu hiện tại vào database."
-      if (config.users.length > 0 && att.length === 0 && nts.length === 0) {
-        console.log("Initial sync: Saving mock data to Google Sheets...");
-        await dataService.saveAllData({
-          users: config.users,
-          attendance: att,
-          logs: lgs,
-          guide: gd,
-          notices: nts
-        });
-      }
+      // Requirement: All data must come from Google Sheets.
+      // If the sheet is empty, it remains empty.
       
       const savedUser = localStorage.getItem('currentUser');
       const savedPass = localStorage.getItem('currentPass');
@@ -236,7 +223,7 @@ export default function App() {
   const handleUpdateUser = async (updatedUser: User) => {
     const newUsers = users.map(u => u.userId === updatedUser.userId ? updatedUser : u);
     setUsers(newUsers);
-    await dataService.saveUsers(newUsers);
+    await dataService.updateUser(updatedUser);
     if (currentUser?.userId === updatedUser.userId) {
       setCurrentUser(updatedUser);
       localStorage.setItem('currentUser', JSON.stringify(updatedUser));
@@ -245,7 +232,7 @@ export default function App() {
 
   const handleChangePassword = async (newPassword: string) => {
     if (!currentUser) return;
-    const success = await dataService.changePassword(currentUser.userId, newPassword);
+    const success = await dataService.changePassword(currentUser, newPassword);
     if (success) {
       const updatedUser = { ...currentUser, password: newPassword };
       setCurrentUser(updatedUser);

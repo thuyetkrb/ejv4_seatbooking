@@ -1618,6 +1618,14 @@ function ConfigurationTab({ users, onUpdateUsers }: { users: User[], onUpdateUse
                     <td className="p-3 border-r border-slate-50">
                       <input 
                         type="text" 
+                        value={user.role} 
+                        onChange={(e) => handleInputChange(user.originalIndex, 'role', e.target.value)}
+                        className="w-full bg-transparent border-none focus:ring-0 text-[12px] font-bold uppercase p-0 text-slate-500"
+                      />
+                    </td>
+                    <td className="p-3 border-r border-slate-50">
+                      <input 
+                        type="text" 
                         value={user.project} 
                         onChange={(e) => handleInputChange(user.originalIndex, 'project', e.target.value)}
                         className="w-full bg-transparent border-none focus:ring-0 text-[12px] font-bold uppercase p-0 text-slate-700"
@@ -1636,14 +1644,6 @@ function ConfigurationTab({ users, onUpdateUsers }: { users: User[], onUpdateUse
                         type="text" 
                         value={user.group || ''} 
                         onChange={(e) => handleInputChange(user.originalIndex, 'group', e.target.value)}
-                        className="w-full bg-transparent border-none focus:ring-0 text-[12px] font-bold uppercase p-0 text-slate-500"
-                      />
-                    </td>
-                    <td className="p-3 border-r border-slate-50">
-                      <input 
-                        type="text" 
-                        value={user.role} 
-                        onChange={(e) => handleInputChange(user.originalIndex, 'role', e.target.value)}
                         className="w-full bg-transparent border-none focus:ring-0 text-[12px] font-bold uppercase p-0 text-slate-500"
                       />
                     </td>

@@ -336,29 +336,66 @@ export default function App() {
       <AnimatePresence>
         {isSyncing && (
           <motion.div 
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="bg-emerald-600 text-white overflow-hidden sticky top-0 z-[60] shadow-lg"
+            initial={{ height: 0, opacity: 0, y: -20 }}
+            animate={{ height: 'auto', opacity: 1, y: 0 }}
+            exit={{ height: 0, opacity: 0, y: -20 }}
+            transition={{ type: 'spring', damping: 20, stiffness: 100 }}
+            className="bg-gradient-to-r from-white via-emerald-50/30 to-white border-b border-emerald-100 overflow-hidden sticky top-0 z-[60] shadow-md"
           >
-            <div className="max-w-[1600px] mx-auto px-4 py-1.5 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-6 h-6 bg-white/20 rounded-md flex items-center justify-center text-[10px] font-black">EJV4</div>
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest opacity-90">Synchronizing data with Google Sheets...</span>
-                </div>
+            <div className="max-w-[1600px] mx-auto px-4 py-2.5 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <motion.div 
+                  initial={{ scale: 0.8, rotate: -10 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  className="flex items-center gap-3"
+                >
+                  <div className="w-9 h-9 bg-emerald-600 rounded-xl flex items-center justify-center text-white text-[11px] font-black shadow-lg shadow-emerald-200 ring-2 ring-emerald-500/20">EJV4</div>
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[12px] font-black text-slate-800 uppercase tracking-wider">System Synchronizing</span>
+                      <span className="text-[10px] font-bold text-emerald-600 animate-pulse">(Please wait...)</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <motion.div 
+                        animate={{ scale: [1, 1.5, 1] }}
+                        transition={{ repeat: Infinity, duration: 2 }}
+                        className="w-1.5 h-1.5 rounded-full bg-emerald-500" 
+                      />
+                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tight">Fetching latest data from Database...</span>
+                    </div>
+                  </div>
+                </motion.div>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="h-1 w-24 bg-white/20 rounded-full overflow-hidden">
-                  <motion.div 
-                    className="h-full bg-white"
-                    animate={{ x: [-100, 100] }}
-                    transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
-                  />
+              <div className="flex items-center gap-4">
+                <div className="hidden sm:flex flex-col items-end gap-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Live Sync</span>
+                    <RefreshCw size={10} className="text-emerald-500 animate-spin" />
+                  </div>
+                  <div className="h-1.5 w-40 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50 relative">
+                    <motion.div 
+                      className="absolute inset-0 bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-400"
+                      animate={{ 
+                        x: ["-100%", "100%"] 
+                      }}
+                      transition={{ 
+                        repeat: Infinity, 
+                        duration: 1.5, 
+                        ease: "linear" 
+                      }}
+                    />
+                    <div className="absolute inset-0 shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)]" />
+                  </div>
                 </div>
               </div>
             </div>
+            {/* Subtle bottom progress line */}
+            <motion.div 
+              className="h-[1px] bg-emerald-500/50 w-full"
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ duration: 1 }}
+            />
           </motion.div>
         )}
       </AnimatePresence>
@@ -777,9 +814,14 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
                 <td colSpan={4} className="p-1 text-[11px] font-bold text-emerald-600 text-right pr-4 sticky left-0 bg-slate-50 z-10 border-r border-slate-200">Occupied Seats</td>
                 {days.map(day => {
                   const dateStr = formatDate(day);
+                  const isToday = isSameDay(day, new Date());
                   const count = attendance.filter((r: AttendanceRecord) => r.date === dateStr && r.mode === 'WFO' && r.seatCode).length;
                   return (
-                    <td key={day.toString()} className={cn("p-0.5 text-center text-[12px] font-black text-emerald-600 border-r border-slate-100", isWeekend(day) ? "bg-slate-200" : "")}>
+                    <td key={day.toString()} className={cn(
+                      "p-0.5 text-center text-[12px] font-black text-emerald-600 border-r border-slate-100", 
+                      isWeekend(day) ? "bg-slate-200" : "",
+                      isToday ? "bg-rose-50" : ""
+                    )}>
                       {count > 0 ? count : ''}
                     </td>
                   );
@@ -790,6 +832,7 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
                 <td colSpan={4} className="p-1 text-[11px] font-bold text-slate-600 text-right pr-4 sticky left-0 bg-slate-50 z-10 border-r border-slate-200">Available Seats</td>
                 {days.map(day => {
                   const dateStr = formatDate(day);
+                  const isToday = isSameDay(day, new Date());
                   const occupiedNormalCount = attendance.filter((r: AttendanceRecord) => {
                     if (r.date !== dateStr || r.mode !== 'WFO' || !r.seatCode) return false;
                     const seat = seats.find(s => s.seatCode === r.seatCode);
@@ -798,7 +841,11 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
                   const totalNormalSeats = seats.filter((s: Seat) => !['EPS', 'ETA', 'X'].includes(s.zone)).length;
                   const count = totalNormalSeats - occupiedNormalCount;
                   return (
-                    <td key={day.toString()} className={cn("p-0.5 text-center text-[12px] font-black text-slate-500 border-r border-slate-100", isWeekend(day) ? "bg-slate-200" : "")}>
+                    <td key={day.toString()} className={cn(
+                      "p-0.5 text-center text-[12px] font-black text-slate-500 border-r border-slate-100", 
+                      isWeekend(day) ? "bg-slate-200" : "",
+                      isToday ? "bg-rose-50" : ""
+                    )}>
                       {!isWeekend(day) ? count : ''}
                     </td>
                   );
@@ -957,12 +1004,12 @@ function SeatCell({ user, day, attendance, seats, allUsers, onSave, currentUser 
     <td className={cn(
       "p-0.5 text-center border-r border-slate-50 relative group",
       weekend ? "bg-slate-200" : "",
-      isToday ? "bg-emerald-50/30 ring-1 ring-inset ring-emerald-100" : ""
+      isToday ? "bg-rose-50 ring-1 ring-inset ring-rose-100" : ""
     )}>
       <div className={cn(
         "w-full h-7 rounded flex items-center justify-center transition-all relative",
-        record ? cn("shadow-sm", WORKING_MODE_LABELS[record.mode].bg) : "hover:bg-emerald-50/50",
-        isToday && !record ? "border border-emerald-200" : "",
+        record ? cn("shadow-sm", WORKING_MODE_LABELS[record.mode].bg) : "hover:bg-rose-50/50",
+        isToday && !record ? "border border-rose-200" : "",
         weekend ? "opacity-50 cursor-not-allowed" : ""
       )}>
         {/* The label */}

@@ -312,13 +312,13 @@ export default function App() {
           </div>
 
           <nav className="hidden md:flex gap-1 bg-slate-100 p-1 rounded-xl">
-            <TabButton active={activeTab === 'timeline'} onClick={() => setActiveTab('timeline')} icon={<CalendarIcon size={16} />} label="Timeline" />
-            <TabButton active={activeTab === 'layout'} onClick={() => setActiveTab('layout')} icon={<MapPin size={16} />} label="Seat Map" />
-            <TabButton active={activeTab === 'guide'} onClick={() => setActiveTab('guide')} icon={<BookOpen size={16} />} label="Guide & Logs" />
-            <TabButton active={activeTab === 'notice'} onClick={() => setActiveTab('notice')} icon={<Bell size={16} />} label="Notice" />
-            <TabButton active={activeTab === 'userinfo'} onClick={() => setActiveTab('userinfo')} icon={<UserIcon size={16} />} label="User Info" />
+            <TabButton active={activeTab === 'timeline'} onClick={() => setActiveTab('timeline')} icon={<CalendarIcon size={16} />} label="TIMELINE" />
+            <TabButton active={activeTab === 'layout'} onClick={() => setActiveTab('layout')} icon={<MapPin size={16} />} label="SEAT MAP" />
+            <TabButton active={activeTab === 'guide'} onClick={() => setActiveTab('guide')} icon={<BookOpen size={16} />} label="GUIDE & LOGS" />
+            <TabButton active={activeTab === 'notice'} onClick={() => setActiveTab('notice')} icon={<Bell size={16} />} label="NOTICE" />
+            <TabButton active={activeTab === 'userinfo'} onClick={() => setActiveTab('userinfo')} icon={<UserIcon size={16} />} label="USER INFO" />
             {isAdmin && (
-              <TabButton active={activeTab === 'config'} onClick={() => setActiveTab('config')} icon={<Settings size={16} />} label="Config" />
+              <TabButton active={activeTab === 'config'} onClick={() => setActiveTab('config')} icon={<Settings size={16} />} label="CONFIG" />
             )}
           </nav>
 
@@ -329,12 +329,12 @@ export default function App() {
               value={activeTab}
               onChange={(e) => setActiveTab(e.target.value as any)}
             >
-              <option value="timeline">Timeline</option>
-              <option value="layout">Seat Map</option>
-              <option value="guide">Guide & Logs</option>
-              <option value="notice">Notice</option>
-              <option value="userinfo">User Info</option>
-              {isAdmin && <option value="config">Config</option>}
+              <option value="timeline">TIMELINE</option>
+              <option value="layout">SEAT MAP</option>
+              <option value="guide">GUIDE & LOGS</option>
+              <option value="notice">NOTICE</option>
+              <option value="userinfo">USER INFO</option>
+              {isAdmin && <option value="config">CONFIG</option>}
             </select>
           </div>
 
@@ -532,8 +532,8 @@ function TabButton({ active, onClick, icon, label }: { active: boolean; onClick:
     <button 
       onClick={onClick}
       className={cn(
-        "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-        active ? "bg-white text-emerald-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
+        "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black transition-all tracking-wider",
+        active ? "bg-emerald-600 text-white shadow-md" : "text-slate-500 hover:text-emerald-600 hover:bg-emerald-50"
       )}
     >
       {icon}
@@ -606,10 +606,10 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
           <table className="w-full border-collapse table-fixed">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="p-1 text-left text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase tracking-wider sticky left-0 bg-slate-50 z-10 w-10 sm:w-14 border-r border-slate-200">ID</th>
-                <th className="p-1 text-left text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase tracking-wider sticky left-[40px] sm:left-[56px] bg-slate-50 z-10 w-24 sm:w-48 border-r border-slate-200">Employee</th>
-                <th className="p-1 text-left text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase tracking-wider sticky left-[136px] sm:left-[248px] bg-slate-50 z-10 w-26 sm:w-36 border-r border-slate-200">Project</th>
-                <th className="p-1 text-left text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase tracking-wider sticky left-[240px] sm:left-[392px] bg-slate-50 z-10 w-8 sm:w-10 border-r border-slate-200">STT</th>
+                <th className="p-1 text-left text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase tracking-wider sticky left-0 bg-slate-100 z-10 w-12 sm:w-16 border-r border-slate-200">ID</th>
+                <th className="p-1 text-left text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase tracking-wider sticky left-[48px] sm:left-[64px] bg-slate-100 z-10 w-24 sm:w-48 border-r border-slate-200">Employee</th>
+                <th className="p-1 text-left text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase tracking-wider sticky left-[144px] sm:left-[256px] bg-slate-100 z-10 w-20 sm:w-28 border-r border-slate-200">Project</th>
+                <th className="p-1 text-left text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase tracking-wider sticky left-[224px] sm:left-[368px] bg-slate-100 z-10 w-8 sm:w-10 border-r border-slate-200">STT</th>
                 {days.map(day => {
                   const isToday = isSameDay(day, new Date());
                   return (
@@ -650,12 +650,12 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
                 return (
                   <tr key={user.userId} className={cn(
                     "border-t border-slate-100 hover:bg-slate-50/50 transition-colors",
-                    canEditAny ? "bg-emerald-50/20" : ""
+                    canEditAny ? "bg-[#f0fdf4]" : "bg-white"
                   )}>
                     <td className="p-1 sticky left-0 bg-inherit z-10 border-r border-slate-200">
-                      <p className="text-[9px] sm:text-[10px] text-slate-600 font-bold truncate">{user.userId}</p>
+                      <p className="text-[9px] sm:text-[10px] text-slate-600 font-bold whitespace-nowrap">{user.userId}</p>
                     </td>
-                    <td className="p-1 sticky left-[40px] sm:left-[56px] bg-inherit z-10 border-r border-slate-200">
+                    <td className="p-1 sticky left-[48px] sm:left-[64px] bg-inherit z-10 border-r border-slate-200">
                       <div className="flex items-center gap-1.5">
                         <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded flex items-center justify-center text-white font-bold text-[7px] sm:text-[8px] flex-shrink-0" style={{ backgroundColor: TEAM_COLORS[user.team] || TEAM_COLORS.Default }}>
                           {user.project.charAt(0)}
@@ -663,13 +663,13 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
                         <p className="text-[10px] sm:text-[11px] font-bold text-slate-900 truncate leading-tight">{user.name}</p>
                       </div>
                     </td>
-                    <td className="p-1 sticky left-[136px] sm:left-[248px] bg-inherit z-10 border-r border-slate-200">
+                    <td className="p-1 sticky left-[144px] sm:left-[256px] bg-inherit z-10 border-r border-slate-200">
                       <p className="text-[9px] sm:text-[10px] font-bold uppercase truncate">
                         <span style={{ color: TEAM_COLORS[user.project] || TEAM_COLORS[user.team] || TEAM_COLORS.Default }}>{user.project}</span>
                         <span className="text-slate-900"> {user.assignedSeat ? `(${user.assignedSeat})` : ''}</span>
                       </p>
                     </td>
-                    <td className="p-1 sticky left-[240px] sm:left-[392px] bg-inherit z-10 border-r border-slate-200">
+                    <td className="p-1 sticky left-[224px] sm:left-[368px] bg-inherit z-10 border-r border-slate-200">
                       <div className="flex items-center justify-center">
                         <div className={cn("w-2 h-2 rounded-full shadow-sm", statusColor)} />
                       </div>

@@ -30,6 +30,41 @@ const MOCK_SEATS: Seat[] = SEAT_LAYOUT_CONFIG.map(s => ({
 }));
 
 export const dataService = {
+  // Helper to get value from object with case-insensitive key
+  getValue(obj: any, key: string): any {
+    if (!obj) return '';
+    const foundKey = Object.keys(obj).find(k => k.toLowerCase().replace(/\s/g, '') === key.toLowerCase().replace(/\s/g, ''));
+    return foundKey ? obj[foundKey] : '';
+  },
+
+  // Helper to normalize date to YYYY-MM-DD
+  normalizeDate(dateStr: any): string {
+    if (!dateStr) return '';
+    try {
+      // If it's already YYYY-MM-DD
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+      
+      // Try parsing common formats
+      const date = new Date(dateStr);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString().split('T')[0];
+      }
+      
+      // Handle dd/mm/yyyy
+      const parts = String(dateStr).split(/[\/\-]/);
+      if (parts.length === 3) {
+        if (parts[0].length === 4) { // yyyy/mm/dd
+          return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+        } else if (parts[2].length === 4) { // dd/mm/yyyy
+          return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
+      }
+    } catch (e) {
+      console.error("Error normalizing date:", dateStr, e);
+    }
+    return String(dateStr);
+  },
+
   async fetchConfig(): Promise<{ users: User[]; seats: Seat[] }> {
     // Try to fetch from Google Sheets first
     const sheetUsers = await googleSheetService.fetchSheetData(CONFIG.SHEETS.USERS);
@@ -38,18 +73,18 @@ export const dataService = {
     
     if (sheetUsers.length > 0) {
       users = sheetUsers.map(u => ({
-        userId: u.userId || u.UserID || '',
-        name: u.name || u.Name || '',
-        team: u.team || u.Team || '',
-        project: u.project || u.Project || '',
-        group: u.group || u.Group || '',
-        active: String(u.active || u.Active).toLowerCase() === 'true' || u.active === true,
-        assignedSeat: u.assignedSeat || u.AssignedSeat || '',
-        role: u.role || u.Role || 'user',
-        password: u.password || u.Password || 'password123',
-        phone: u.phone || u.Phone || '',
-        email: u.email || u.Email || '',
-        address: u.address || u.Address || ''
+        userId: this.getValue(u, 'userId') || '',
+        name: this.getValue(u, 'name') || '',
+        team: this.getValue(u, 'team') || '',
+        project: this.getValue(u, 'project') || '',
+        group: this.getValue(u, 'group') || '',
+        active: String(this.getValue(u, 'active')).toLowerCase() === 'true' || this.getValue(u, 'active') === true,
+        assignedSeat: this.getValue(u, 'assignedSeat') || '',
+        role: this.getValue(u, 'role') || 'user',
+        password: this.getValue(u, 'password') || 'password123',
+        phone: this.getValue(u, 'phone') || '',
+        email: this.getValue(u, 'email') || '',
+        address: this.getValue(u, 'address') || ''
       }));
     }
 
@@ -220,13 +255,13 @@ export const dataService = {
     const sheetAttendance = await googleSheetService.fetchSheetData(CONFIG.SHEETS.ATTENDANCE);
     if (sheetAttendance.length > 0) {
       return sheetAttendance.map(r => ({
-        date: r.date || r.Date || '',
-        userId: r.userId || r.UserID || '',
-        mode: (r.mode || r.Mode || 'WFO') as any,
-        seatCode: r.seatCode || r.SeatCode || '',
-        note: r.note || r.Note || '',
-        updatedAt: r.updatedAt || r.UpdatedAt || new Date().toISOString(),
-        updatedBy: r.updatedBy || r.UpdatedBy || 'System'
+        date: this.normalizeDate(this.getValue(r, 'date')),
+        userId: this.getValue(r, 'userId'),
+        mode: (this.getValue(r, 'mode') || 'WFO') as any,
+        seatCode: this.getValue(r, 'seatCode'),
+        note: this.getValue(r, 'note'),
+        updatedAt: this.getValue(r, 'updatedAt') || new Date().toISOString(),
+        updatedBy: this.getValue(r, 'updatedBy') || 'System'
       }));
     }
     const data = localStorage.getItem(STORAGE_KEY_ATTENDANCE);

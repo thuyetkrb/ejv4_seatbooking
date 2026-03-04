@@ -166,26 +166,36 @@ export default function App() {
     setLoginData({ userId: '', password: '' });
   };
 
-  const handleSaveAttendance = async (userId: string, date: Date, mode: WorkingMode, seatCode?: string, note?: string) => {
+  const handleSaveAttendance = async (userId: string, date: Date, mode: WorkingMode | 'CLEAR', seatCode?: string, note?: string) => {
     const dateStr = formatDate(date);
     const existingIndex = attendance.findIndex(r => r.userId === userId && r.date === dateStr);
     
     const before = existingIndex > -1 ? attendance[existingIndex] : null;
-    const newRecord: AttendanceRecord = {
-      userId,
-      date: dateStr,
-      mode,
-      seatCode,
-      note,
-      updatedAt: new Date().toISOString(),
-      updatedBy: currentUser?.name || 'Unknown User',
-    };
-
+    
     let newAttendance = [...attendance];
-    if (existingIndex > -1) {
-      newAttendance[existingIndex] = newRecord;
+    
+    if (mode === 'CLEAR') {
+      if (existingIndex > -1) {
+        newAttendance.splice(existingIndex, 1);
+      } else {
+        return; // Nothing to clear
+      }
     } else {
-      newAttendance.push(newRecord);
+      const newRecord: AttendanceRecord = {
+        userId,
+        date: dateStr,
+        mode: mode as WorkingMode,
+        seatCode,
+        note,
+        updatedAt: new Date().toISOString(),
+        updatedBy: currentUser?.name || 'Unknown User',
+      };
+
+      if (existingIndex > -1) {
+        newAttendance[existingIndex] = newRecord;
+      } else {
+        newAttendance.push(newRecord);
+      }
     }
 
     setAttendance(newAttendance);
@@ -193,10 +203,10 @@ export default function App() {
     
     dataService.addLog({
       actor: currentUser?.name || 'Unknown User',
-      action: 'CHANGE_MODE',
+      action: mode === 'CLEAR' ? 'CLEAR' : 'CHANGE_MODE',
       target: `${userId} on ${dateStr}`,
       before,
-      after: newRecord
+      after: mode === 'CLEAR' ? null : newAttendance.find(r => r.userId === userId && r.date === dateStr)
     });
     const updatedLogs = await dataService.getLogs();
     setLogs(updatedLogs);
@@ -443,15 +453,6 @@ export default function App() {
                   <p className="text-sm font-bold text-slate-700">{format(new Date(), 'EEEE, MMMM do, yyyy')}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-emerald-500 shadow-sm border border-slate-100">
-                  <UserIcon size={20} />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Author</p>
-                  <p className="text-sm font-bold text-slate-700">{CONFIG.AUTHOR}</p>
-                </div>
-              </div>
             </div>
 
             {isAdmin && (
@@ -462,13 +463,6 @@ export default function App() {
                 >
                   <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
                   Refresh Data
-                </button>
-                <button 
-                  onClick={handleSaveAllToSheets}
-                  className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-2.5 rounded-xl text-xs font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100"
-                >
-                  <Save size={14} />
-                  Save to Database
                 </button>
                 <button 
                   onClick={handleExportData}
@@ -572,11 +566,11 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
           <table className="w-full border-collapse table-fixed">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="p-1 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-0 bg-slate-50 z-10 w-12 sm:w-14 border-r border-slate-200">ID</th>
-                <th className="p-1 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[48px] sm:left-[56px] bg-slate-50 z-10 w-32 sm:w-48 border-r border-slate-200">Employee</th>
-                <th className="p-1 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[176px] sm:left-[248px] bg-slate-50 z-10 w-16 sm:w-20 border-r border-slate-200">Project</th>
-                <th className="p-1 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[240px] sm:left-[328px] bg-slate-50 z-10 w-14 sm:w-16 border-r border-slate-200">Seat</th>
-                <th className="p-1 text-left text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[296px] sm:left-[392px] bg-slate-50 z-10 w-20 sm:w-24 border-r border-slate-200">Status</th>
+                <th className="p-1 text-left text-[10px] sm:text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-0 bg-slate-50 z-10 w-10 sm:w-14 border-r border-slate-200">ID</th>
+                <th className="p-1 text-left text-[10px] sm:text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[40px] sm:left-[56px] bg-slate-50 z-10 w-24 sm:w-48 border-r border-slate-200">Employee</th>
+                <th className="p-1 text-left text-[10px] sm:text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[136px] sm:left-[248px] bg-slate-50 z-10 w-14 sm:w-20 border-r border-slate-200">Project</th>
+                <th className="p-1 text-left text-[10px] sm:text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[192px] sm:left-[328px] bg-slate-50 z-10 w-12 sm:w-16 border-r border-slate-200">Seat</th>
+                <th className="p-1 text-left text-[10px] sm:text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[240px] sm:left-[392px] bg-slate-50 z-10 w-16 sm:w-24 border-r border-slate-200">Status</th>
                 {days.map(day => {
                   const isToday = isSameDay(day, new Date());
                   return (
@@ -616,27 +610,27 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
                 return (
                   <tr key={user.userId} className="border-t border-slate-100 hover:bg-slate-50/50 transition-colors">
                     <td className="p-1 sticky left-0 bg-white z-10 border-r border-slate-200">
-                      <p className="text-[11px] text-slate-600 font-bold truncate">{user.userId}</p>
+                      <p className="text-[10px] sm:text-[11px] text-slate-600 font-bold truncate">{user.userId}</p>
                     </td>
-                    <td className="p-1 sticky left-[48px] sm:left-[56px] bg-white z-10 border-r border-slate-200">
+                    <td className="p-1 sticky left-[40px] sm:left-[56px] bg-white z-10 border-r border-slate-200">
                       <div className="flex items-center gap-1.5">
-                        <div className="w-4 h-4 rounded flex items-center justify-center text-white font-bold text-[9px] flex-shrink-0" style={{ backgroundColor: TEAM_COLORS[user.team] || TEAM_COLORS.Default }}>
+                        <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded flex items-center justify-center text-white font-bold text-[8px] sm:text-[9px] flex-shrink-0" style={{ backgroundColor: TEAM_COLORS[user.team] || TEAM_COLORS.Default }}>
                           {user.project.charAt(0)}
                         </div>
-                        <p className="text-[12px] font-bold text-slate-900 truncate leading-tight">{user.name}</p>
+                        <p className="text-[11px] sm:text-[12px] font-bold text-slate-900 truncate leading-tight">{user.name}</p>
                       </div>
                     </td>
-                    <td className="p-1 sticky left-[176px] sm:left-[248px] bg-white z-10 border-r border-slate-200">
-                      <p className="text-[11px] text-slate-700 font-bold uppercase truncate">{user.project}</p>
+                    <td className="p-1 sticky left-[136px] sm:left-[248px] bg-white z-10 border-r border-slate-200">
+                      <p className="text-[10px] sm:text-[11px] text-slate-700 font-bold uppercase truncate">{user.project}</p>
                     </td>
-                    <td className="p-1 sticky left-[240px] sm:left-[328px] bg-white z-10 border-r border-slate-200">
-                      <p className="text-[11px] font-black truncate" style={{ color: TEAM_COLORS[user.team] || TEAM_COLORS.Default }}>
+                    <td className="p-1 sticky left-[192px] sm:left-[328px] bg-white z-10 border-r border-slate-200">
+                      <p className="text-[10px] sm:text-[11px] font-black truncate" style={{ color: TEAM_COLORS[user.team] || TEAM_COLORS.Default }}>
                         {user.assignedSeat || '-'}
                       </p>
                     </td>
-                    <td className="p-1 sticky left-[296px] sm:left-[392px] bg-white z-10 border-r border-slate-200">
+                    <td className="p-1 sticky left-[240px] sm:left-[392px] bg-white z-10 border-r border-slate-200">
                       <div className="flex items-center gap-1">
-                        <div className={cn("text-[9px] font-black px-1.5 py-0.5 rounded-full text-center truncate flex-1", statusClass)}>
+                        <div className={cn("text-[8px] sm:text-[9px] font-black px-1 sm:px-1.5 py-0.5 rounded-full text-center truncate flex-1", statusClass)}>
                           {statusLabel}
                         </div>
                       </div>
@@ -824,11 +818,11 @@ function SeatCell({ user, day, attendance, seats, allUsers, onSave, currentUser 
   }, [seats, occupiedSeats, user.assignedSeat, user.project, allUsers]);
 
   const handleSelectChange = (val: string) => {
-    if (weekend || !canEdit || !currentUser) return; // Disable selection on weekends, past days or if not logged in
+    if (weekend || !canEdit || !currentUser) return;
     if (val === 'WFH' || val === 'LEAVE' || val === 'FLEXID' || val === 'HOLIDAY') {
       onSave(user.userId, day, val, '', '');
     } else if (val === 'CLEAR') {
-      onSave(user.userId, day, 'WFO', '', '');
+      onSave(user.userId, day, 'CLEAR', '', '');
     } else if (val !== '') {
       onSave(user.userId, day, 'WFO', val, '');
     }

@@ -87,7 +87,7 @@ export const googleSheetService = {
       return result;
     };
 
-    const headers = parseLine(lines[0]);
+    const headers = parseLine(lines[0]).map(h => h.trim().replace(/^\uFEFF/, ''));
     const data = [];
 
     for (let i = 1; i < lines.length; i++) {
@@ -95,7 +95,9 @@ export const googleSheetService = {
       const values = parseLine(lines[i]);
       const obj: any = {};
       headers.forEach((header, index) => {
-        obj[header] = values[index] || '';
+        if (header) {
+          obj[header] = values[index] || '';
+        }
       });
       data.push(obj);
     }

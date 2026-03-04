@@ -167,6 +167,19 @@ export default function App() {
   };
 
   const handleSaveAttendance = async (userId: string, date: Date, mode: WorkingMode | 'CLEAR', seatCode?: string, note?: string) => {
+    if (!currentUser) return;
+    
+    // Permission check
+    const isPowerUser = currentUser.name === 'Nguyen Huu Thuyet' || (currentUser.role && currentUser.role.includes('PjM'));
+    const isOwnRow = currentUser.userId === userId;
+    const isToday = isSameDay(date, new Date());
+    const isPastDay = !isToday && date < new Date(new Date().setHours(0, 0, 0, 0));
+    
+    if (!isPowerUser && (!isOwnRow || isPastDay)) {
+      console.warn('Permission denied: Cannot edit this record');
+      return;
+    }
+
     const dateStr = formatDate(date);
     const existingIndex = attendance.findIndex(r => r.userId === userId && r.date === dateStr);
     
@@ -810,7 +823,13 @@ function SeatCell({ user, day, attendance, seats, allUsers, onSave, currentUser 
   const isToday = isSameDay(day, new Date());
   const weekend = isWeekend(day);
   const isPastDay = !isToday && day < new Date(new Date().setHours(0, 0, 0, 0));
-  const canEdit = !isPastDay || currentUser?.userId === 'GTH8HC';
+  
+  const isPowerUser = currentUser?.name === 'Nguyen Huu Thuyet' || (currentUser?.role && currentUser.role.includes('PjM'));
+  const isOwnRow = currentUser?.userId === user.userId;
+  
+  // Power users can edit everything. Others can only edit their own row.
+  // Also respect the past day restriction (except for power users or specific exceptions if any)
+  const canEdit = isPowerUser || (isOwnRow && !isPastDay);
 
   // Get occupied seats for this day (excluding current user)
   const occupiedSeats = useMemo(() => {

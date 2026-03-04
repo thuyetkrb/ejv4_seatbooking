@@ -7,6 +7,7 @@ interface NoticeBoardProps {
   notices: Notice[];
   currentUser: User | null;
   onAddNotice: (title: string, content: string) => void;
+  onUpdateNotice: (id: string, title: string, content: string) => void;
   onDeleteNotice: (id: string) => void;
 }
 
@@ -14,9 +15,11 @@ export const NoticeBoard: React.FC<NoticeBoardProps> = ({
   notices, 
   currentUser, 
   onAddNotice, 
+  onUpdateNotice,
   onDeleteNotice 
 }) => {
   const [isAdding, setIsAdding] = useState(false);
+  const [editingNotice, setEditingNotice] = useState<Notice | null>(null);
   const [newNotice, setNewNotice] = useState({ title: '', content: '' });
   
   // Only users with roles containing "PjM" or "PgM" can post notices, or the admin
@@ -30,10 +33,27 @@ export const NoticeBoard: React.FC<NoticeBoardProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (newNotice.title.trim() && newNotice.content.trim()) {
-      onAddNotice(newNotice.title, newNotice.content);
+      if (editingNotice) {
+        onUpdateNotice(editingNotice.id, newNotice.title, newNotice.content);
+        setEditingNotice(null);
+      } else {
+        onAddNotice(newNotice.title, newNotice.content);
+      }
       setNewNotice({ title: '', content: '' });
       setIsAdding(false);
     }
+  };
+
+  const startEdit = (notice: Notice) => {
+    setEditingNotice(notice);
+    setNewNotice({ title: notice.title, content: notice.content });
+    setIsAdding(true);
+  };
+
+  const cancelEdit = () => {
+    setEditingNotice(null);
+    setNewNotice({ title: '', content: '' });
+    setIsAdding(false);
   };
 
   return (
@@ -50,11 +70,14 @@ export const NoticeBoard: React.FC<NoticeBoardProps> = ({
         </div>
         {canPostNotice && (
           <button
-            onClick={() => setIsAdding(!isAdding)}
+            onClick={() => {
+              if (isAdding) cancelEdit();
+              else setIsAdding(true);
+            }}
             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium shadow-sm"
           >
             <Plus className="w-4 h-4" />
-            Post Notice
+            {editingNotice ? 'Cancel Edit' : 'Post Notice'}
           </button>
         )}
       </div>
@@ -92,7 +115,7 @@ export const NoticeBoard: React.FC<NoticeBoardProps> = ({
               <div className="flex justify-end gap-3">
                 <button
                   type="button"
-                  onClick={() => setIsAdding(false)}
+                  onClick={cancelEdit}
                   className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
                 >
                   Cancel
@@ -101,7 +124,7 @@ export const NoticeBoard: React.FC<NoticeBoardProps> = ({
                   type="submit"
                   className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium shadow-sm"
                 >
-                  Post Now
+                  {editingNotice ? 'Update Notice' : 'Post Now'}
                 </button>
               </div>
             </form>
@@ -144,15 +167,26 @@ export const NoticeBoard: React.FC<NoticeBoardProps> = ({
                     </span>
                   </div>
                 </div>
-                {isAdmin && (
-                  <button
-                    onClick={() => onDeleteNotice(notice.id)}
-                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                    title="Delete notice"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
+                <div className="flex items-center gap-1">
+                  {isAdmin && (
+                    <>
+                      <button
+                        onClick={() => startEdit(notice)}
+                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                        title="Edit notice"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => onDeleteNotice(notice.id)}
+                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                        title="Delete notice"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
               <div className="prose prose-slate max-w-none">
                 <p className="text-slate-700 whitespace-pre-wrap leading-relaxed">{notice.content}</p>

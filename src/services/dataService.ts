@@ -49,24 +49,30 @@ export const dataService = {
         return s.split('T')[0];
       }
 
-      // If it's already YYYY-MM-DD
-      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-      
-      // Handle dd/mm/yyyy or dd-mm-yyyy
-      const parts = s.split(/[\/\-]/);
-      if (parts.length === 3) {
-        if (parts[0].length === 4) { // yyyy/mm/dd
-          return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
-        } else if (parts[2].length === 4) { // dd/mm/yyyy
-          return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-        }
+      // Handle common formats manually to avoid JS Date parsing traps
+      // Match YYYY-MM-DD or YYYY-M-D or YYYY/M/D
+      const ymdMatch = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+      if (ymdMatch) {
+        return `${ymdMatch[1]}-${ymdMatch[2].padStart(2, '0')}-${ymdMatch[3].padStart(2, '0')}`;
+      }
+
+      // Match DD/MM/YYYY or D/M/YYYY or D-M-YYYY
+      const dmyMatch = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+      if (dmyMatch) {
+        return `${dmyMatch[3]}-${dmyMatch[2].padStart(2, '0')}-${dmyMatch[1].padStart(2, '0')}`;
       }
 
       // Fallback to date-fns format if it's a valid date string
       const date = new Date(s);
       if (!isNaN(date.getTime())) {
-        // Use format from date-fns to get local date string
-        return format(date, 'yyyy-MM-dd');
+        // If the string was just a date like "2026-03-04", some browsers parse as UTC.
+        // We want to treat it as local to avoid the "previous day" bug.
+        // One way is to check if it's midnight UTC and shift it if needed, 
+        // but it's safer to just use getFullYear/Month/Date.
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
       }
     } catch (e) {
       console.error("Error normalizing date:", dateStr, e);
@@ -388,6 +394,15 @@ export const dataService = {
     const updatedNotices = [newNotice, ...notices];
     localStorage.setItem(STORAGE_KEY_NOTICES, JSON.stringify(updatedNotices));
     await googleSheetService.saveData(CONFIG.SHEETS.NOTICE, updatedNotices);
+  },
+
+  async updateNotice(id: string, updates: Partial<Notice>) {
+    const data = localStorage.getItem(STORAGE_KEY_NOTICES);
+    const notices: Notice[] = data ? JSON.parse(data) : [];
+    const updatedNotices = notices.map(n => n.id === id ? { ...n, ...updates } : n);
+    localStorage.setItem(STORAGE_KEY_NOTICES, JSON.stringify(updatedNotices));
+    await googleSheetService.saveData(CONFIG.SHEETS.NOTICE, updatedNotices);
+    return updatedNotices;
   },
 
   async deleteNotice(id: string) {

@@ -214,12 +214,18 @@ export default function App() {
 
   const handleSaveNotice = async (title: string, content: string) => {
     if (!currentUser) return;
-    dataService.saveNotice({
+    await dataService.saveNotice({
       title,
       content,
       poster: currentUser.name,
       posterId: currentUser.userId
     });
+    const updatedNotices = await dataService.getNotices();
+    setNotices(updatedNotices);
+  };
+
+  const handleUpdateNotice = async (id: string, title: string, content: string) => {
+    await dataService.updateNotice(id, { title, content });
     const updatedNotices = await dataService.getNotices();
     setNotices(updatedNotices);
   };
@@ -409,6 +415,7 @@ export default function App() {
             notices={notices}
             currentUser={currentUser}
             onAddNotice={handleSaveNotice}
+            onUpdateNotice={handleUpdateNotice}
             onDeleteNotice={handleDeleteNotice}
           />
         )}

@@ -9,7 +9,7 @@ export const getDaysInMonth = (date: Date) => {
   return eachDayOfInterval({ start, end });
 };
 
-export const formatDate = (date: Date) => format(date, 'yyyy-MM-dd');
+export const formatDate = (date: Date) => format(date, 'dd-MMM-yyyy');
 export const formatDisplayDate = (date: Date) => format(date, 'dd/MM (EEEE)', { locale: enUS });
 export const formatMonthYear = (date: Date) => format(date, 'MMMM yyyy', { locale: enUS });
 export const formatTime = (date: Date) => format(date, 'HH:mm:ss dd/MM/yyyy');

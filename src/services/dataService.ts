@@ -38,41 +38,63 @@ export const dataService = {
     return foundKey ? obj[foundKey] : '';
   },
 
-  // Helper to normalize date to YYYY-MM-DD (Local aware)
+  // Helper to normalize date to dd-MMM-yyyy (Local aware)
   normalizeDate(dateStr: any): string {
     if (!dateStr) return '';
     try {
       const s = String(dateStr).trim();
       
       // If it's an ISO string with T, just take the date part to avoid TZ shifts
+      let baseDateStr = s;
       if (s.includes('T')) {
-        return s.split('T')[0];
+        baseDateStr = s.split('T')[0];
       }
 
       // Handle common formats manually to avoid JS Date parsing traps
       // Match YYYY-MM-DD or YYYY-M-D or YYYY/M/D
-      const ymdMatch = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+      const ymdMatch = baseDateStr.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
       if (ymdMatch) {
-        return `${ymdMatch[1]}-${ymdMatch[2].padStart(2, '0')}-${ymdMatch[3].padStart(2, '0')}`;
+        const d = new Date(parseInt(ymdMatch[1]), parseInt(ymdMatch[2]) - 1, parseInt(ymdMatch[3]));
+        return format(d, 'dd-MMM-yyyy');
       }
 
       // Match DD/MM/YYYY or D/M/YYYY or D-M-YYYY
-      const dmyMatch = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+      const dmyMatch = baseDateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
       if (dmyMatch) {
-        return `${dmyMatch[3]}-${dmyMatch[2].padStart(2, '0')}-${dmyMatch[1].padStart(2, '0')}`;
+        const d = new Date(parseInt(dmyMatch[3]), parseInt(dmyMatch[2]) - 1, parseInt(dmyMatch[1]));
+        return format(d, 'dd-MMM-yyyy');
+      }
+
+      // Match DD-MMM-YYYY (e.g., 04-Mar-2026)
+      const dmmmYMatch = baseDateStr.match(/^(\d{1,2})[\/\-]([a-zA-Z]{3})[\/\-](\d{4})$/);
+      if (dmmmYMatch) {
+        // This is already in the target format or close to it
+        // We can just parse it to be sure
+        const d = new Date(baseDateStr);
+        if (!isNaN(d.getTime())) {
+          return format(d, 'dd-MMM-yyyy');
+        }
       }
 
       // Fallback to date-fns format if it's a valid date string
-      const date = new Date(s);
+      const date = new Date(baseDateStr);
       if (!isNaN(date.getTime())) {
         // If the string was just a date like "2026-03-04", some browsers parse as UTC.
         // We want to treat it as local to avoid the "previous day" bug.
         // One way is to check if it's midnight UTC and shift it if needed, 
         // but it's safer to just use getFullYear/Month/Date.
         const y = date.getFullYear();
-        const m = String(date.getMonth() + 1).padStart(2, '0');
-        const d = String(date.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
+        const m = date.getMonth();
+        const d = date.getDate();
+        
+        // If it's an ISO date string and we are here, it might have been parsed as UTC.
+        if (/^\d{4}-\d{2}-\d{2}$/.test(baseDateStr)) {
+          const parts = baseDateStr.split('-');
+          const localDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+          return format(localDate, 'dd-MMM-yyyy');
+        }
+
+        return format(date, 'dd-MMM-yyyy');
       }
     } catch (e) {
       console.error("Error normalizing date:", dateStr, e);

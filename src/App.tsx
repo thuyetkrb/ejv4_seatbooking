@@ -606,10 +606,10 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
           <table className="w-full border-collapse table-fixed">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="p-1 text-left text-[10px] sm:text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-0 bg-slate-50 z-10 w-10 sm:w-14 border-r border-slate-200">ID</th>
-                <th className="p-1 text-left text-[10px] sm:text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[40px] sm:left-[56px] bg-slate-50 z-10 w-24 sm:w-48 border-r border-slate-200">Employee</th>
-                <th className="p-1 text-left text-[10px] sm:text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[136px] sm:left-[248px] bg-slate-50 z-10 w-26 sm:w-36 border-r border-slate-200">Project</th>
-                <th className="p-1 text-left text-[10px] sm:text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[240px] sm:left-[392px] bg-slate-50 z-10 w-16 sm:w-24 border-r border-slate-200">Status</th>
+                <th className="p-1 text-left text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase tracking-wider sticky left-0 bg-slate-50 z-10 w-10 sm:w-14 border-r border-slate-200">ID</th>
+                <th className="p-1 text-left text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase tracking-wider sticky left-[40px] sm:left-[56px] bg-slate-50 z-10 w-24 sm:w-48 border-r border-slate-200">Employee</th>
+                <th className="p-1 text-left text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase tracking-wider sticky left-[136px] sm:left-[248px] bg-slate-50 z-10 w-26 sm:w-36 border-r border-slate-200">Project</th>
+                <th className="p-1 text-left text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase tracking-wider sticky left-[240px] sm:left-[392px] bg-slate-50 z-10 w-8 sm:w-10 border-r border-slate-200">STT</th>
                 {days.map(day => {
                   const isToday = isSameDay(day, new Date());
                   return (
@@ -618,8 +618,8 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
                       isWeekend(day) ? "bg-slate-200" : "",
                       isToday ? "bg-emerald-100 ring-1 ring-inset ring-emerald-200" : ""
                     )}>
-                      <p className="text-[8px] uppercase font-bold text-slate-600 leading-none">{format(day, 'EE', { locale: enUS }).charAt(0)}</p>
-                      <p className={cn("text-[12px] font-bold leading-tight", isToday ? "text-emerald-700" : "text-slate-900")}>{format(day, 'd')}</p>
+                      <p className="text-[7px] uppercase font-bold text-slate-600 leading-none">{format(day, 'EE', { locale: enUS }).charAt(0)}</p>
+                      <p className={cn("text-[11px] font-bold leading-tight", isToday ? "text-emerald-700" : "text-slate-900")}>{format(day, 'd')}</p>
                     </th>
                   );
                 })}
@@ -636,40 +636,42 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
                   return attendance.some(r => r.userId === user.userId && r.date === dateStr);
                 }).length;
 
-                let statusLabel = 'Plan OK';
-                let statusClass = 'text-emerald-600 bg-emerald-50';
+                let statusColor = 'bg-emerald-500';
                 if (plannedDaysCount === 0) {
-                  statusLabel = 'Warning';
-                  statusClass = 'text-rose-600 bg-rose-50 animate-pulse font-black shadow-[0_0_10px_rgba(225,29,72,0.4)]';
+                  statusColor = 'bg-rose-500 animate-pulse';
                 } else if (plannedDaysCount < workingDays.length) {
-                  statusLabel = 'Need Plan';
-                  statusClass = 'text-amber-600 bg-amber-50 animate-pulse font-bold shadow-[0_0_10px_rgba(217,119,6,0.2)]';
+                  statusColor = 'bg-amber-500 animate-pulse';
                 }
 
+                const isPowerUser = currentUser?.name === 'Nguyen Huu Thuyet' || (currentUser?.role && currentUser.role.includes('PjM'));
+                const isOwnRow = currentUser?.userId === user.userId;
+                const canEditAny = isPowerUser || isOwnRow;
+
                 return (
-                  <tr key={user.userId} className="border-t border-slate-100 hover:bg-slate-50/50 transition-colors">
-                    <td className="p-1 sticky left-0 bg-white z-10 border-r border-slate-200">
-                      <p className="text-[10px] sm:text-[11px] text-slate-600 font-bold truncate">{user.userId}</p>
+                  <tr key={user.userId} className={cn(
+                    "border-t border-slate-100 hover:bg-slate-50/50 transition-colors",
+                    canEditAny ? "bg-emerald-50/20" : ""
+                  )}>
+                    <td className="p-1 sticky left-0 bg-inherit z-10 border-r border-slate-200">
+                      <p className="text-[9px] sm:text-[10px] text-slate-600 font-bold truncate">{user.userId}</p>
                     </td>
-                    <td className="p-1 sticky left-[40px] sm:left-[56px] bg-white z-10 border-r border-slate-200">
+                    <td className="p-1 sticky left-[40px] sm:left-[56px] bg-inherit z-10 border-r border-slate-200">
                       <div className="flex items-center gap-1.5">
-                        <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded flex items-center justify-center text-white font-bold text-[8px] sm:text-[9px] flex-shrink-0" style={{ backgroundColor: TEAM_COLORS[user.team] || TEAM_COLORS.Default }}>
+                        <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded flex items-center justify-center text-white font-bold text-[7px] sm:text-[8px] flex-shrink-0" style={{ backgroundColor: TEAM_COLORS[user.team] || TEAM_COLORS.Default }}>
                           {user.project.charAt(0)}
                         </div>
-                        <p className="text-[11px] sm:text-[12px] font-bold text-slate-900 truncate leading-tight">{user.name}</p>
+                        <p className="text-[10px] sm:text-[11px] font-bold text-slate-900 truncate leading-tight">{user.name}</p>
                       </div>
                     </td>
-                    <td className="p-1 sticky left-[136px] sm:left-[248px] bg-white z-10 border-r border-slate-200">
-                      <p className="text-[10px] sm:text-[11px] font-bold uppercase truncate">
+                    <td className="p-1 sticky left-[136px] sm:left-[248px] bg-inherit z-10 border-r border-slate-200">
+                      <p className="text-[9px] sm:text-[10px] font-bold uppercase truncate">
                         <span style={{ color: TEAM_COLORS[user.project] || TEAM_COLORS[user.team] || TEAM_COLORS.Default }}>{user.project}</span>
                         <span className="text-slate-900"> {user.assignedSeat ? `(${user.assignedSeat})` : ''}</span>
                       </p>
                     </td>
-                    <td className="p-1 sticky left-[240px] sm:left-[392px] bg-white z-10 border-r border-slate-200">
-                      <div className="flex items-center gap-1">
-                        <div className={cn("text-[8px] sm:text-[9px] font-black px-1 sm:px-1.5 py-0.5 rounded-full text-center truncate flex-1", statusClass)}>
-                          {statusLabel}
-                        </div>
+                    <td className="p-1 sticky left-[240px] sm:left-[392px] bg-inherit z-10 border-r border-slate-200">
+                      <div className="flex items-center justify-center">
+                        <div className={cn("w-2 h-2 rounded-full shadow-sm", statusColor)} />
                       </div>
                     </td>
                     {days.map(day => (
@@ -887,17 +889,20 @@ function SeatCell({ user, day, attendance, seats, allUsers, onSave, currentUser 
     <td className={cn(
       "p-0.5 text-center border-r border-slate-50 relative group",
       weekend ? "bg-slate-200" : "",
-      isToday ? "bg-emerald-50/30 ring-1 ring-inset ring-emerald-100" : "",
-      !canEdit && !weekend ? "bg-slate-50/50" : ""
+      isToday ? "bg-emerald-50/30 ring-1 ring-inset ring-emerald-100" : ""
     )}>
       <div className={cn(
         "w-full h-7 rounded flex items-center justify-center transition-all relative",
         record ? cn("shadow-sm", WORKING_MODE_LABELS[record.mode].bg) : "hover:bg-emerald-50/50",
         isToday && !record ? "border border-emerald-200" : "",
-        (weekend || !canEdit) ? "opacity-50 cursor-not-allowed" : ""
+        weekend ? "opacity-50 cursor-not-allowed" : ""
       )}>
         {/* The label */}
-        <span className={cn("text-[10px] font-black uppercase pointer-events-none", record ? WORKING_MODE_LABELS[record.mode].color : "text-slate-300 group-hover:text-emerald-300")}>
+        <span className={cn(
+          "font-black uppercase pointer-events-none", 
+          record ? WORKING_MODE_LABELS[record.mode].color : "text-slate-300 group-hover:text-emerald-300",
+          (record?.mode === 'HOLIDAY' || record?.mode === 'WFH' || record?.mode === 'LEAVE') ? "text-[8px]" : "text-[10px]"
+        )}>
           {getLabel()}
         </span>
 

@@ -43,6 +43,12 @@ export const dataService = {
     if (!dateStr) return '';
     try {
       const s = String(dateStr).trim();
+      
+      // If it's an ISO string with T, just take the date part to avoid TZ shifts
+      if (s.includes('T')) {
+        return s.split('T')[0];
+      }
+
       // If it's already YYYY-MM-DD
       if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
       

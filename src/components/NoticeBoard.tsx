@@ -25,7 +25,7 @@ export const NoticeBoard: React.FC<NoticeBoardProps> = ({
     currentUser.role.includes('PgM')
   )) || currentUser?.name === 'Nguyen Huu Thuyet';
   
-  const isAdmin = currentUser?.name === 'Nguyen Huu Thuyet';
+  const isAdmin = currentUser?.name === 'Nguyen Huu Thuyet' || (currentUser?.role && currentUser.role.includes('PjM'));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

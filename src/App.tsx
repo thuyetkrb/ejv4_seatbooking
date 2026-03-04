@@ -340,7 +340,7 @@ export default function App() {
             animate={{ height: 'auto', opacity: 1, y: 0 }}
             exit={{ height: 0, opacity: 0, y: -20 }}
             transition={{ type: 'spring', damping: 20, stiffness: 100 }}
-            className="bg-gradient-to-r from-white via-emerald-50/30 to-white border-b border-emerald-100 overflow-hidden sticky top-0 z-[60] shadow-md"
+            className="bg-emerald-800 border-b border-emerald-900 overflow-hidden sticky top-0 z-[60] shadow-xl"
           >
             <div className="max-w-[1600px] mx-auto px-4 py-2.5 flex items-center justify-between">
               <div className="flex items-center gap-4">
@@ -349,19 +349,19 @@ export default function App() {
                   animate={{ scale: 1, rotate: 0 }}
                   className="flex items-center gap-3"
                 >
-                  <div className="w-9 h-9 bg-emerald-600 rounded-xl flex items-center justify-center text-white text-[11px] font-black shadow-lg shadow-emerald-200 ring-2 ring-emerald-500/20">EJV4</div>
+                  <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center text-emerald-800 text-[11px] font-black shadow-lg ring-2 ring-white/20">EJV4</div>
                   <div className="flex flex-col">
                     <div className="flex items-center gap-2">
-                      <span className="text-[12px] font-black text-slate-800 uppercase tracking-wider">System Synchronizing</span>
-                      <span className="text-[10px] font-bold text-emerald-600 animate-pulse">(Please wait...)</span>
+                      <span className="text-[12px] font-black text-white uppercase tracking-wider">System Synchronizing</span>
+                      <span className="text-[10px] font-bold text-emerald-200 animate-pulse">(Please wait...)</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <motion.div 
                         animate={{ scale: [1, 1.5, 1] }}
                         transition={{ repeat: Infinity, duration: 2 }}
-                        className="w-1.5 h-1.5 rounded-full bg-emerald-500" 
+                        className="w-1.5 h-1.5 rounded-full bg-emerald-400" 
                       />
-                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tight">Fetching latest data from Database...</span>
+                      <span className="text-[9px] font-bold text-emerald-100/80 uppercase tracking-tight">Fetching latest data from Database...</span>
                     </div>
                   </div>
                 </motion.div>
@@ -369,12 +369,12 @@ export default function App() {
               <div className="flex items-center gap-4">
                 <div className="hidden sm:flex flex-col items-end gap-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Live Sync</span>
-                    <RefreshCw size={10} className="text-emerald-500 animate-spin" />
+                    <span className="text-[9px] font-black text-emerald-200 uppercase tracking-widest">Live Sync</span>
+                    <RefreshCw size={10} className="text-emerald-300 animate-spin" />
                   </div>
-                  <div className="h-1.5 w-40 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50 relative">
+                  <div className="h-1.5 w-40 bg-emerald-900/50 rounded-full overflow-hidden border border-white/10 relative">
                     <motion.div 
-                      className="absolute inset-0 bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-400"
+                      className="absolute inset-0 bg-gradient-to-r from-emerald-300 via-white to-emerald-300"
                       animate={{ 
                         x: ["-100%", "100%"] 
                       }}
@@ -384,14 +384,13 @@ export default function App() {
                         ease: "linear" 
                       }}
                     />
-                    <div className="absolute inset-0 shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)]" />
                   </div>
                 </div>
               </div>
             </div>
             {/* Subtle bottom progress line */}
             <motion.div 
-              className="h-[1px] bg-emerald-500/50 w-full"
+              className="h-[1px] bg-white/20 w-full"
               initial={{ scaleX: 0 }}
               animate={{ scaleX: 1 }}
               transition={{ duration: 1 }}

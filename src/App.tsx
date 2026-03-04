@@ -41,7 +41,7 @@ export default function App() {
   const [showLogin, setShowLogin] = useState(false);
   const [guideContent, setGuideContent] = useState<string>('');
 
-  const isAdmin = currentUser?.role === 'admin' || currentUser?.userId === 'GTH8HC';
+  const isAdmin = currentUser?.name === 'Nguyen Huu Thuyet';
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -258,8 +258,21 @@ export default function App() {
   };
 
   if (loading) return (
-    <div className="flex items-center justify-center h-screen bg-[#f5f5f5]">
-      <div className="animate-pulse text-slate-500 font-medium">Loading data...</div>
+    <div className="flex flex-col items-center justify-center h-screen bg-slate-50">
+      <div className="relative w-24 h-24 mb-8">
+        <div className="absolute inset-0 rounded-3xl bg-emerald-600 animate-ping opacity-20" />
+        <div className="absolute inset-0 rounded-3xl bg-emerald-600 flex items-center justify-center text-white shadow-2xl shadow-emerald-200">
+          <span className="text-2xl font-black">EJV4</span>
+        </div>
+      </div>
+      <div className="flex flex-col items-center gap-2">
+        <div className="flex gap-1">
+          <div className="w-2 h-2 rounded-full bg-emerald-600 animate-bounce [animation-delay:-0.3s]" />
+          <div className="w-2 h-2 rounded-full bg-emerald-600 animate-bounce [animation-delay:-0.15s]" />
+          <div className="w-2 h-2 rounded-full bg-emerald-600 animate-bounce" />
+        </div>
+        <p className="text-slate-500 font-bold text-xs uppercase tracking-[0.2em] animate-pulse">Initializing System</p>
+      </div>
     </div>
   );
 
@@ -424,7 +437,7 @@ export default function App() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-1">
               <UserGuide 
-                isAdmin={currentUser?.role === 'admin'} 
+                isAdmin={isAdmin} 
                 content={guideContent}
                 onUpdate={(newContent: string) => {
                   setGuideContent(newContent);
@@ -433,7 +446,14 @@ export default function App() {
               />
             </div>
             <div className="lg:col-span-2">
-              <AuditLogView logs={logs} />
+              <AuditLogView 
+                logs={logs} 
+                currentUser={currentUser}
+                onDeleteLog={async (id) => {
+                  const updated = await dataService.deleteLog(id);
+                  setLogs(updated);
+                }}
+              />
             </div>
           </div>
         )}
@@ -568,8 +588,7 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="p-1 text-left text-[10px] sm:text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-0 bg-slate-50 z-10 w-10 sm:w-14 border-r border-slate-200">ID</th>
                 <th className="p-1 text-left text-[10px] sm:text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[40px] sm:left-[56px] bg-slate-50 z-10 w-24 sm:w-48 border-r border-slate-200">Employee</th>
-                <th className="p-1 text-left text-[10px] sm:text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[136px] sm:left-[248px] bg-slate-50 z-10 w-14 sm:w-20 border-r border-slate-200">Project</th>
-                <th className="p-1 text-left text-[10px] sm:text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[192px] sm:left-[328px] bg-slate-50 z-10 w-12 sm:w-16 border-r border-slate-200">Seat</th>
+                <th className="p-1 text-left text-[10px] sm:text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[136px] sm:left-[248px] bg-slate-50 z-10 w-26 sm:w-36 border-r border-slate-200">Project</th>
                 <th className="p-1 text-left text-[10px] sm:text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky left-[240px] sm:left-[392px] bg-slate-50 z-10 w-16 sm:w-24 border-r border-slate-200">Status</th>
                 {days.map(day => {
                   const isToday = isSameDay(day, new Date());
@@ -621,11 +640,9 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
                       </div>
                     </td>
                     <td className="p-1 sticky left-[136px] sm:left-[248px] bg-white z-10 border-r border-slate-200">
-                      <p className="text-[10px] sm:text-[11px] text-slate-700 font-bold uppercase truncate">{user.project}</p>
-                    </td>
-                    <td className="p-1 sticky left-[192px] sm:left-[328px] bg-white z-10 border-r border-slate-200">
-                      <p className="text-[10px] sm:text-[11px] font-black truncate" style={{ color: TEAM_COLORS[user.team] || TEAM_COLORS.Default }}>
-                        {user.assignedSeat || '-'}
+                      <p className="text-[10px] sm:text-[11px] font-bold uppercase truncate">
+                        <span style={{ color: TEAM_COLORS[user.project] || TEAM_COLORS[user.team] || TEAM_COLORS.Default }}>{user.project}</span>
+                        <span className="text-slate-900"> {user.assignedSeat ? `(${user.assignedSeat})` : ''}</span>
                       </p>
                     </td>
                     <td className="p-1 sticky left-[240px] sm:left-[392px] bg-white z-10 border-r border-slate-200">
@@ -702,14 +719,6 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
             <Info size={18} className="text-emerald-500" />
             Today's Layout Status ({formatDisplayDate(new Date())})
           </h3>
-          <div className="flex gap-4">
-            {Object.entries(TEAM_COLORS).filter(([k]) => k !== 'Default' && k !== 'Admin').map(([team, color]) => (
-              <div key={team} className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
-                <span className="text-[10px] font-bold text-slate-500 uppercase">{team}</span>
-              </div>
-            ))}
-          </div>
         </div>
         
         <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200 relative overflow-hidden">
@@ -831,7 +840,8 @@ function SeatCell({ user, day, attendance, seats, allUsers, onSave, currentUser 
   const currentValue = record ? (record.mode !== 'WFO' ? record.mode : record.seatCode) : '';
 
   const getLabel = () => {
-    if (!record) return !weekend && canEdit ? <Plus size={10} /> : '';
+    if (weekend) return ''; // Requirement: Weekends should not show any info
+    if (!record) return canEdit ? <Plus size={10} /> : '';
     if (record.mode === 'WFO') return record.seatCode;
     if (record.mode === 'WFH') return 'WFH';
     if (record.mode === 'LEAVE') return 'Leave';
@@ -1123,7 +1133,7 @@ function UserGuide({ isAdmin, content, onUpdate }: any) {
             <div className="space-y-3">
               <div>
                 <p className="text-[11px] font-bold text-rose-600 uppercase">Priority 1 – Your own seat</p>
-                <p className="text-xs text-slate-500">Always book <strong>your assigned seat first</strong>. Check Column G (Priority) for 1st priority.</p>
+                <p className="text-xs text-slate-500">Always book <strong>your assigned seat first. .</strong></p>
               </div>
               <div>
                 <p className="text-[11px] font-bold text-rose-600 uppercase">Priority 2 – Same project team</p>
@@ -1594,7 +1604,9 @@ function ConfigurationTab({ users, onUpdateUsers }: { users: User[], onUpdateUse
   );
 }
 
-function AuditLogView({ logs }: { logs: AuditLog[] }) {
+function AuditLogView({ logs, currentUser, onDeleteLog }: { logs: AuditLog[]; currentUser: User | null; onDeleteLog: (id: string) => void }) {
+  const canDelete = currentUser?.name === "Nguyen Huu Thuyet";
+
   return (
     <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 h-full">
       <div className="flex justify-between items-center mb-6">
@@ -1611,14 +1623,25 @@ function AuditLogView({ logs }: { logs: AuditLog[] }) {
             <div className="text-center py-20 text-slate-300 font-medium italic">No activities recorded yet.</div>
           ) : (
             logs.map(log => (
-              <div key={log.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex gap-4 items-start">
+              <div key={log.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex gap-4 items-start group">
                 <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 flex-shrink-0">
                   <UserIcon size={18} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start">
                     <p className="text-sm font-bold text-slate-800 truncate">{log.actor}</p>
-                    <span className="text-[10px] font-bold text-slate-400">{formatTime(parseISO(log.time))}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-slate-400">{formatTime(parseISO(log.time))}</span>
+                      {canDelete && (
+                        <button 
+                          onClick={() => onDeleteLog(log.id)}
+                          className="opacity-0 group-hover:opacity-100 p-1 text-rose-500 hover:bg-rose-50 rounded transition-all"
+                          title="Delete log"
+                        >
+                          <X size={12} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <p className="text-xs text-slate-500 mt-0.5">
                     Performed <span className="font-bold text-emerald-600">{log.action}</span> for <span className="font-bold text-slate-700">{log.target}</span>

@@ -1,6 +1,7 @@
 import { User, Seat, AttendanceRecord, AuditLog, Notice } from '../types';
 import { googleSheetService } from './googleSheetService';
 import { CONFIG } from '../config';
+import { format } from 'date-fns';
 
 const STORAGE_KEY_ATTENDANCE = 'seat_dashboard_attendance';
 const STORAGE_KEY_LOGS = 'seat_dashboard_logs';
@@ -37,27 +38,29 @@ export const dataService = {
     return foundKey ? obj[foundKey] : '';
   },
 
-  // Helper to normalize date to YYYY-MM-DD
+  // Helper to normalize date to YYYY-MM-DD (Local aware)
   normalizeDate(dateStr: any): string {
     if (!dateStr) return '';
     try {
+      const s = String(dateStr).trim();
       // If it's already YYYY-MM-DD
-      if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
       
-      // Try parsing common formats
-      const date = new Date(dateStr);
-      if (!isNaN(date.getTime())) {
-        return date.toISOString().split('T')[0];
-      }
-      
-      // Handle dd/mm/yyyy
-      const parts = String(dateStr).split(/[\/\-]/);
+      // Handle dd/mm/yyyy or dd-mm-yyyy
+      const parts = s.split(/[\/\-]/);
       if (parts.length === 3) {
         if (parts[0].length === 4) { // yyyy/mm/dd
           return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
         } else if (parts[2].length === 4) { // dd/mm/yyyy
           return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
         }
+      }
+
+      // Fallback to date-fns format if it's a valid date string
+      const date = new Date(s);
+      if (!isNaN(date.getTime())) {
+        // Use format from date-fns to get local date string
+        return format(date, 'yyyy-MM-dd');
       }
     } catch (e) {
       console.error("Error normalizing date:", dateStr, e);
@@ -310,6 +313,30 @@ export const dataService = {
       before_json: JSON.stringify(newLog.before),
       after_json: JSON.stringify(newLog.after)
     }], 'append');
+  },
+
+  async deleteLog(logId: string) {
+    const logs = await this.getLogs();
+    const updatedLogs = logs.filter(l => l.id !== logId);
+    localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(updatedLogs));
+    
+    const sheetData = updatedLogs.map(l => ({
+      id: l.id,
+      time: l.time,
+      actor: l.actor,
+      action: l.action,
+      target: l.target,
+      before_json: JSON.stringify(l.before),
+      after_json: JSON.stringify(l.after)
+    }));
+    await googleSheetService.saveData(CONFIG.SHEETS.HISTORY, sheetData, 'update');
+    return updatedLogs;
+  },
+
+  async clearLogs() {
+    localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify([]));
+    await googleSheetService.saveData(CONFIG.SHEETS.HISTORY, [], 'update');
+    return [];
   },
 
   async getGuide(): Promise<string> {

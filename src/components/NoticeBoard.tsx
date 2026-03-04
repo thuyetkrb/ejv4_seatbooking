@@ -19,14 +19,13 @@ export const NoticeBoard: React.FC<NoticeBoardProps> = ({
   const [isAdding, setIsAdding] = useState(false);
   const [newNotice, setNewNotice] = useState({ title: '', content: '' });
   
-  // Only users with roles containing "PjM" or "PgM" can post notices
-  const canPostNotice = currentUser?.role && (
+  // Only users with roles containing "PjM" or "PgM" can post notices, or the admin
+  const canPostNotice = (currentUser?.role && (
     currentUser.role.includes('PjM') || 
-    currentUser.role.includes('PgM') || 
-    currentUser.role === 'admin'
-  );
+    currentUser.role.includes('PgM')
+  )) || currentUser?.name === 'Nguyen Huu Thuyet';
   
-  const isAdmin = currentUser?.role === 'admin';
+  const isAdmin = currentUser?.name === 'Nguyen Huu Thuyet';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

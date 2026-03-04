@@ -123,6 +123,12 @@ export const dataService = {
         email: this.getValue(u, 'email') || '',
         address: this.getValue(u, 'address') || ''
       }));
+      // Update cache
+      localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(users));
+    } else {
+      // Fallback to cache if sheet is empty or fetch fails
+      const data = localStorage.getItem(STORAGE_KEY_USERS);
+      if (data) users = JSON.parse(data);
     }
 
     return { users, seats: MOCK_SEATS };
@@ -301,6 +307,8 @@ export const dataService = {
         updatedAt: this.getValue(r, 'updatedAt') || new Date().toISOString(),
         updatedBy: this.getValue(r, 'updatedBy') || 'System'
       }));
+      // Update cache
+      localStorage.setItem(STORAGE_KEY_ATTENDANCE, JSON.stringify(records));
     } else {
       const data = localStorage.getItem(STORAGE_KEY_ATTENDANCE);
       records = data ? JSON.parse(data) : [];
@@ -326,7 +334,7 @@ export const dataService = {
   async getLogs(): Promise<AuditLog[]> {
     const sheetLogs = await googleSheetService.fetchSheetData(CONFIG.SHEETS.HISTORY);
     if (sheetLogs.length > 0) {
-      return sheetLogs.map(l => ({
+      const logs = sheetLogs.map(l => ({
         id: l.id || l.ID || '',
         time: l.time || l.Time || '',
         actor: l.actor || l.Actor || '',
@@ -335,6 +343,9 @@ export const dataService = {
         before: (l.before_json || l.Before_json) ? JSON.parse(l.before_json || l.Before_json) : null,
         after: (l.after_json || l.After_json) ? JSON.parse(l.after_json || l.After_json) : null
       }));
+      // Update cache
+      localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(logs));
+      return logs;
     }
     const data = localStorage.getItem(STORAGE_KEY_LOGS);
     return data ? JSON.parse(data) : [];
@@ -389,7 +400,9 @@ export const dataService = {
   async getGuide(): Promise<string> {
     const sheetGuide = await googleSheetService.fetchSheetData(CONFIG.SHEETS.GUIDE);
     if (sheetGuide.length > 0) {
-      return sheetGuide[0].content || sheetGuide[0].Content || '';
+      const content = sheetGuide[0].content || sheetGuide[0].Content || '';
+      localStorage.setItem(STORAGE_KEY_GUIDE, content);
+      return content;
     }
     return localStorage.getItem(STORAGE_KEY_GUIDE) || '';
   },
@@ -411,11 +424,24 @@ export const dataService = {
         posterId: n.posterId || n.PosterID || '',
         date: n.date || n.Date || ''
       }));
+      // Update cache
+      localStorage.setItem(STORAGE_KEY_NOTICES, JSON.stringify(notices));
     } else {
       const data = localStorage.getItem(STORAGE_KEY_NOTICES);
       notices = data ? JSON.parse(data) : [];
     }
     return notices.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  },
+
+  getCachedData() {
+    return {
+      users: JSON.parse(localStorage.getItem(STORAGE_KEY_USERS) || '[]'),
+      attendance: JSON.parse(localStorage.getItem(STORAGE_KEY_ATTENDANCE) || '[]'),
+      logs: JSON.parse(localStorage.getItem(STORAGE_KEY_LOGS) || '[]'),
+      guide: localStorage.getItem(STORAGE_KEY_GUIDE) || '',
+      notices: JSON.parse(localStorage.getItem(STORAGE_KEY_NOTICES) || '[]'),
+      seats: MOCK_SEATS
+    };
   },
 
   async saveNotice(notice: Omit<Notice, 'id' | 'date'>) {

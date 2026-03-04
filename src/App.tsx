@@ -21,6 +21,7 @@ import {
 } from './constants';
 import { addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, isSameDay, parseISO, format } from 'date-fns';
 import { enUS } from 'date-fns/locale';
+import { motion, AnimatePresence } from 'motion/react';
 import { NoticeBoard } from './components/NoticeBoard';
 import { CONFIG } from './config';
 
@@ -30,6 +31,7 @@ function cn(...inputs: ClassValue[]) {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'timeline' | 'layout' | 'notice' | 'userinfo' | 'guide' | 'config'>('timeline');
+  const [isSyncing, setIsSyncing] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [seats, setSeats] = useState<Seat[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
@@ -50,42 +52,75 @@ export default function App() {
 
   useEffect(() => {
     const init = async () => {
-      setLoading(true);
-      const config = await dataService.fetchConfig();
-      setUsers(config.users);
-      setSeats(config.seats);
+      // 1. Load from cache first
+      const cached = dataService.getCachedData();
+      const hasCache = cached.users.length > 0;
       
-      const [att, lgs, gd, nts] = await Promise.all([
-        dataService.getAttendance(),
-        dataService.getLogs(),
-        dataService.getGuide(),
-        dataService.getNotices()
-      ]);
+      if (hasCache) {
+        setUsers(cached.users);
+        setSeats(cached.seats);
+        setAttendance(cached.attendance);
+        setLogs(cached.logs);
+        setGuideContent(cached.guide);
+        setNotices(cached.notices);
+        
+        // Try to login from cache
+        const savedUser = localStorage.getItem('currentUser');
+        const savedPass = localStorage.getItem('currentPass');
+        if (savedUser && savedPass) {
+          try {
+            const parsed = JSON.parse(savedUser);
+            const found = cached.users.find((u: User) => u.userId === parsed.userId);
+            if (found) {
+              setCurrentUser(found);
+              setLoginData({ userId: found.userId, password: savedPass });
+            }
+          } catch (e) {
+            console.error("Failed to parse saved user", e);
+          }
+        }
+        
+        setLoading(false); // Show UI immediately
+        setIsSyncing(true); // Start background sync
+      } else {
+        setLoading(true); // No cache, show splash screen
+      }
 
-      setAttendance(att);
-      setLogs(lgs);
-      setGuideContent(gd);
-      setNotices(nts);
+      // 2. Fetch fresh data from Google Sheets
+      try {
+        const config = await dataService.fetchConfig();
+        setUsers(config.users);
+        setSeats(config.seats);
+        
+        const [att, lgs, gd, nts] = await Promise.all([
+          dataService.getAttendance(),
+          dataService.getLogs(),
+          dataService.getGuide(),
+          dataService.getNotices()
+        ]);
 
-      // Requirement: All data must come from Google Sheets.
-      // If the sheet is empty, it remains empty.
-      
-      const savedUser = localStorage.getItem('currentUser');
-      const savedPass = localStorage.getItem('currentPass');
-      if (savedUser && savedPass) {
-        try {
+        setAttendance(att);
+        setLogs(lgs);
+        setGuideContent(gd);
+        setNotices(nts);
+
+        // Update current user if already logged in
+        const savedUser = localStorage.getItem('currentUser');
+        if (savedUser) {
           const parsed = JSON.parse(savedUser);
           const found = config.users.find((u: User) => u.userId === parsed.userId);
-          if (found) {
-            setCurrentUser(found);
-            setLoginData({ userId: found.userId, password: savedPass });
-          }
-        } catch (e) {
-          console.error("Failed to parse saved user", e);
+          if (found) setCurrentUser(found);
+        } else if (!hasCache) {
+          // If first time and no cache, check if we should show login
+          const savedPass = localStorage.getItem('currentPass');
+          // (Login logic already handled if cache existed, but if no cache we might need it here)
         }
+      } catch (error) {
+        console.error("Background sync failed", error);
+      } finally {
+        setLoading(false);
+        setIsSyncing(false);
       }
-      
-      setLoading(false);
     };
     init();
   }, []);
@@ -297,6 +332,37 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#f5f5f5] text-slate-900 font-sans">
+      {/* Syncing Bar */}
+      <AnimatePresence>
+        {isSyncing && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="bg-emerald-600 text-white overflow-hidden sticky top-0 z-[60] shadow-lg"
+          >
+            <div className="max-w-[1600px] mx-auto px-4 py-1.5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-6 h-6 bg-white/20 rounded-md flex items-center justify-center text-[10px] font-black">EJV4</div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest opacity-90">Synchronizing data with Google Sheets...</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-1 w-24 bg-white/20 rounded-full overflow-hidden">
+                  <motion.div 
+                    className="h-full bg-white"
+                    animate={{ x: [-100, 100] }}
+                    transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+                  />
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <header className="bg-slate-50/95 backdrop-blur-md border-b border-slate-200/60 sticky top-0 z-40 shadow-sm border-t-2 border-t-emerald-500">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
@@ -616,10 +682,10 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
                     <th key={day.toString()} className={cn(
                       "p-0.5 text-center w-11 border-r border-slate-100",
                       isWeekend(day) ? "bg-slate-200" : "",
-                      isToday ? "bg-emerald-100 ring-1 ring-inset ring-emerald-200" : ""
+                      isToday ? "bg-rose-100 ring-1 ring-inset ring-rose-200" : ""
                     )}>
                       <p className="text-[7px] uppercase font-bold text-slate-600 leading-none">{format(day, 'EE', { locale: enUS }).charAt(0)}</p>
-                      <p className={cn("text-[11px] font-bold leading-tight", isToday ? "text-emerald-700" : "text-slate-900")}>{format(day, 'd')}</p>
+                      <p className={cn("text-[11px] font-bold leading-tight", isToday ? "text-rose-700" : "text-slate-900")}>{format(day, 'd')}</p>
                     </th>
                   );
                 })}

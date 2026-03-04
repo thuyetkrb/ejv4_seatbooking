@@ -290,8 +290,9 @@ export const dataService = {
 
   async getAttendance(): Promise<AttendanceRecord[]> {
     const sheetAttendance = await googleSheetService.fetchSheetData(CONFIG.SHEETS.ATTENDANCE);
+    let records: AttendanceRecord[] = [];
     if (sheetAttendance.length > 0) {
-      return sheetAttendance.map(r => ({
+      records = sheetAttendance.map(r => ({
         date: this.normalizeDate(this.getValue(r, 'date')),
         userId: this.getValue(r, 'userId'),
         mode: (this.getValue(r, 'mode') || 'WFO') as any,
@@ -300,9 +301,21 @@ export const dataService = {
         updatedAt: this.getValue(r, 'updatedAt') || new Date().toISOString(),
         updatedBy: this.getValue(r, 'updatedBy') || 'System'
       }));
+    } else {
+      const data = localStorage.getItem(STORAGE_KEY_ATTENDANCE);
+      records = data ? JSON.parse(data) : [];
     }
-    const data = localStorage.getItem(STORAGE_KEY_ATTENDANCE);
-    return data ? JSON.parse(data) : [];
+
+    // Deduplicate by userId and date, keeping the latest updatedAt
+    const uniqueRecords: Record<string, AttendanceRecord> = {};
+    records.forEach(r => {
+      if (!r.userId || !r.date) return;
+      const key = `${r.userId}_${r.date}`;
+      if (!uniqueRecords[key] || new Date(r.updatedAt) > new Date(uniqueRecords[key].updatedAt)) {
+        uniqueRecords[key] = r;
+      }
+    });
+    return Object.values(uniqueRecords);
   },
 
   async saveAttendance(records: AttendanceRecord[]) {

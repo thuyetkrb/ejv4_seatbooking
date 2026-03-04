@@ -691,9 +691,10 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
             <tfoot className="bg-slate-50 border-t-2 border-slate-200">
               {/* WFH Summary */}
               <tr>
-                <td colSpan={5} className="p-1 text-[11px] font-bold text-blue-600 text-right pr-4 sticky left-0 bg-slate-50 z-10 border-r border-slate-200">Total WFH</td>
+                <td colSpan={4} className="p-1 text-[11px] font-bold text-blue-600 text-right pr-4 sticky left-0 bg-slate-50 z-10 border-r border-slate-200">Total WFH</td>
                 {days.map(day => {
-                  const count = attendance.filter((r: AttendanceRecord) => r.date === formatDate(day) && r.mode === 'WFH').length;
+                  const dateStr = formatDate(day);
+                  const count = attendance.filter((r: AttendanceRecord) => r.date === dateStr && r.mode === 'WFH').length;
                   return (
                     <td key={day.toString()} className={cn("p-0.5 text-center text-[12px] font-black text-blue-600 border-r border-slate-100", isWeekend(day) ? "bg-slate-200" : "")}>
                       {count > 0 ? count : ''}
@@ -703,9 +704,10 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
               </tr>
               {/* Occupied Summary */}
               <tr>
-                <td colSpan={5} className="p-1 text-[11px] font-bold text-emerald-600 text-right pr-4 sticky left-0 bg-slate-50 z-10 border-r border-slate-200">Occupied Seats</td>
+                <td colSpan={4} className="p-1 text-[11px] font-bold text-emerald-600 text-right pr-4 sticky left-0 bg-slate-50 z-10 border-r border-slate-200">Occupied Seats</td>
                 {days.map(day => {
-                  const count = attendance.filter((r: AttendanceRecord) => r.date === formatDate(day) && r.mode === 'WFO' && r.seatCode).length;
+                  const dateStr = formatDate(day);
+                  const count = attendance.filter((r: AttendanceRecord) => r.date === dateStr && r.mode === 'WFO' && r.seatCode).length;
                   return (
                     <td key={day.toString()} className={cn("p-0.5 text-center text-[12px] font-black text-emerald-600 border-r border-slate-100", isWeekend(day) ? "bg-slate-200" : "")}>
                       {count > 0 ? count : ''}
@@ -715,11 +717,16 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
               </tr>
               {/* Available Summary */}
               <tr>
-                <td colSpan={5} className="p-1 text-[11px] font-bold text-slate-600 text-right pr-4 sticky left-0 bg-slate-50 z-10 border-r border-slate-200">Available Seats</td>
+                <td colSpan={4} className="p-1 text-[11px] font-bold text-slate-600 text-right pr-4 sticky left-0 bg-slate-50 z-10 border-r border-slate-200">Available Seats</td>
                 {days.map(day => {
-                  const occupiedCount = attendance.filter((r: AttendanceRecord) => r.date === formatDate(day) && r.mode === 'WFO' && r.seatCode).length;
-                  const totalSeats = seats.filter((s: Seat) => !['EPS', 'ETA', 'X'].includes(s.zone)).length;
-                  const count = totalSeats - occupiedCount;
+                  const dateStr = formatDate(day);
+                  const occupiedNormalCount = attendance.filter((r: AttendanceRecord) => {
+                    if (r.date !== dateStr || r.mode !== 'WFO' || !r.seatCode) return false;
+                    const seat = seats.find(s => s.seatCode === r.seatCode);
+                    return seat && !['EPS', 'ETA', 'X'].includes(seat.zone);
+                  }).length;
+                  const totalNormalSeats = seats.filter((s: Seat) => !['EPS', 'ETA', 'X'].includes(s.zone)).length;
+                  const count = totalNormalSeats - occupiedNormalCount;
                   return (
                     <td key={day.toString()} className={cn("p-0.5 text-center text-[12px] font-black text-slate-500 border-r border-slate-100", isWeekend(day) ? "bg-slate-200" : "")}>
                       {!isWeekend(day) ? count : ''}

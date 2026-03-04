@@ -606,10 +606,10 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
           <table className="w-full border-collapse table-fixed">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="p-1 text-left text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase tracking-wider sticky left-0 bg-slate-100 z-10 w-12 sm:w-16 border-r border-slate-200">ID</th>
-                <th className="p-1 text-left text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase tracking-wider sticky left-[48px] sm:left-[64px] bg-slate-100 z-10 w-24 sm:w-48 border-r border-slate-200">Employee</th>
-                <th className="p-1 text-left text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase tracking-wider sticky left-[144px] sm:left-[256px] bg-slate-100 z-10 w-20 sm:w-28 border-r border-slate-200">Project</th>
-                <th className="p-1 text-left text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase tracking-wider sticky left-[224px] sm:left-[368px] bg-slate-100 z-10 w-8 sm:w-10 border-r border-slate-200">STT</th>
+                <th className="p-1 text-left text-[9px] sm:text-[10px] font-bold text-slate-700 uppercase tracking-wider sticky left-0 bg-slate-200 z-10 w-12 sm:w-16 border-r border-slate-300">ID</th>
+                <th className="p-1 text-left text-[9px] sm:text-[10px] font-bold text-slate-700 uppercase tracking-wider sticky left-[48px] sm:left-[64px] bg-slate-200 z-10 w-24 sm:w-48 border-r border-slate-300">Employee</th>
+                <th className="p-1 text-left text-[9px] sm:text-[10px] font-bold text-slate-700 uppercase tracking-wider sticky left-[144px] sm:left-[256px] bg-slate-200 z-10 w-20 sm:w-28 border-r border-slate-300">Project</th>
+                <th className="p-1 text-left text-[9px] sm:text-[10px] font-bold text-slate-700 uppercase tracking-wider sticky left-[224px] sm:left-[368px] bg-slate-200 z-10 w-8 sm:w-10 border-r border-slate-300">STT</th>
                 {days.map(day => {
                   const isToday = isSameDay(day, new Date());
                   return (
@@ -647,15 +647,17 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
                 const isOwnRow = currentUser?.userId === user.userId;
                 const canEditAny = isPowerUser || isOwnRow;
 
+                const stickyBg = canEditAny ? "bg-emerald-100" : "bg-slate-100";
+
                 return (
                   <tr key={user.userId} className={cn(
                     "border-t border-slate-100 hover:bg-slate-50/50 transition-colors",
                     canEditAny ? "bg-[#f0fdf4]" : "bg-white"
                   )}>
-                    <td className="p-1 sticky left-0 bg-inherit z-10 border-r border-slate-200">
+                    <td className={cn("p-1 sticky left-0 z-10 border-r border-slate-200", stickyBg)}>
                       <p className="text-[9px] sm:text-[10px] text-slate-600 font-bold whitespace-nowrap">{user.userId}</p>
                     </td>
-                    <td className="p-1 sticky left-[48px] sm:left-[64px] bg-inherit z-10 border-r border-slate-200">
+                    <td className={cn("p-1 sticky left-[48px] sm:left-[64px] z-10 border-r border-slate-200", stickyBg)}>
                       <div className="flex items-center gap-1.5">
                         <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded flex items-center justify-center text-white font-bold text-[7px] sm:text-[8px] flex-shrink-0" style={{ backgroundColor: TEAM_COLORS[user.team] || TEAM_COLORS.Default }}>
                           {user.project.charAt(0)}
@@ -663,13 +665,13 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
                         <p className="text-[10px] sm:text-[11px] font-bold text-slate-900 truncate leading-tight">{user.name}</p>
                       </div>
                     </td>
-                    <td className="p-1 sticky left-[144px] sm:left-[256px] bg-inherit z-10 border-r border-slate-200">
+                    <td className={cn("p-1 sticky left-[144px] sm:left-[256px] z-10 border-r border-slate-200", stickyBg)}>
                       <p className="text-[9px] sm:text-[10px] font-bold uppercase truncate">
                         <span style={{ color: TEAM_COLORS[user.project] || TEAM_COLORS[user.team] || TEAM_COLORS.Default }}>{user.project}</span>
                         <span className="text-slate-900"> {user.assignedSeat ? `(${user.assignedSeat})` : ''}</span>
                       </p>
                     </td>
-                    <td className="p-1 sticky left-[224px] sm:left-[368px] bg-inherit z-10 border-r border-slate-200">
+                    <td className={cn("p-1 sticky left-[224px] sm:left-[368px] z-10 border-r border-slate-200", stickyBg)}>
                       <div className="flex items-center justify-center">
                         <div className={cn("w-2 h-2 rounded-full shadow-sm", statusColor)} />
                       </div>
@@ -1294,6 +1296,7 @@ function UserInformationTab({ users, currentUser, onUpdateUser, onChangePassword
             <InfoField label="Name" value={editedUser?.name || ''} onChange={(v: string) => setEditedUser(prev => prev ? {...prev, name: v} : null)} readOnly={!editMode} />
             <InfoField label="Role" value={editedUser?.role || ''} onChange={(v: string) => setEditedUser(prev => prev ? {...prev, role: v} : null)} readOnly={!editMode} />
             <InfoField label="Project" value={editedUser?.project || ''} onChange={(v: string) => setEditedUser(prev => prev ? {...prev, project: v} : null)} readOnly={!editMode} />
+            <InfoField label="Group" value={editedUser?.group || ''} onChange={(v: string) => setEditedUser(prev => prev ? {...prev, group: v} : null)} readOnly={!editMode} />
             <InfoField label="Phone" value={editedUser?.phone || ''} onChange={(v: string) => setEditedUser(prev => prev ? {...prev, phone: v} : null)} readOnly={!editMode} />
             <InfoField label="Email" value={editedUser?.email || ''} onChange={(v: string) => setEditedUser(prev => prev ? {...prev, email: v} : null)} readOnly={!editMode} />
             <InfoField label="Address" value={editedUser?.address || ''} onChange={(v: string) => setEditedUser(prev => prev ? {...prev, address: v} : null)} readOnly={!editMode} />
@@ -1390,6 +1393,7 @@ function UserInformationTab({ users, currentUser, onUpdateUser, onChangePassword
                 <th className="p-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Name</th>
                 <th className="p-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Role</th>
                 <th className="p-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Project</th>
+                <th className="p-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Group</th>
                 <th className="p-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Phone</th>
                 <th className="p-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Email</th>
                 <th className="p-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Address</th>
@@ -1398,13 +1402,14 @@ function UserInformationTab({ users, currentUser, onUpdateUser, onChangePassword
             <tbody className="divide-y divide-slate-100">
               {users.map((user: User) => (
                 <tr key={user.userId} className="hover:bg-slate-50 transition-all">
-                  <td className="p-3 text-[12px] font-bold text-slate-600">{user.userId}</td>
-                  <td className="p-3 text-[12px] font-bold text-slate-900">{user.name}</td>
-                  <td className="p-3 text-[12px] font-bold text-slate-500 uppercase">{user.role}</td>
-                  <td className="p-3 text-[12px] font-bold text-slate-700 uppercase">{user.project}</td>
-                  <td className="p-3 text-[12px] text-slate-600">{user.phone || '-'}</td>
-                  <td className="p-3 text-[12px] text-slate-600">{user.email || '-'}</td>
-                  <td className="p-3 text-[12px] text-slate-600 truncate max-w-[200px]">{user.address || '-'}</td>
+                  <td className="p-3 text-[13px] font-bold text-slate-600">{user.userId}</td>
+                  <td className="p-3 text-[13px] font-bold text-slate-900">{user.name}</td>
+                  <td className="p-3 text-[13px] font-bold text-slate-500 uppercase">{user.role}</td>
+                  <td className="p-3 text-[13px] font-bold text-slate-700 uppercase">{user.project}</td>
+                  <td className="p-3 text-[13px] font-bold text-slate-500 uppercase">{user.group || '-'}</td>
+                  <td className="p-3 text-[13px] text-slate-600">{user.phone || '-'}</td>
+                  <td className="p-3 text-[13px] text-slate-600">{user.email || '-'}</td>
+                  <td className="p-3 text-[13px] text-slate-600 truncate max-w-[200px]">{user.address || '-'}</td>
                 </tr>
               ))}
             </tbody>
@@ -1568,14 +1573,19 @@ function ConfigurationTab({ users, onUpdateUsers }: { users: User[], onUpdateUse
         )}
 
         <div className="overflow-x-auto rounded-2xl border border-slate-100">
-          <table className="w-full border-collapse">
+          <table className="w-full border-collapse min-w-[1200px]">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-100">
                 <th className="p-3 text-left w-24 text-[11px] font-bold text-slate-500 uppercase tracking-wider">User ID</th>
                 <th className="p-3 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Name</th>
                 <th className="p-3 text-left w-24 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Role</th>
-                <th className="p-3 text-left w-32 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Project</th>
+                <th className="p-3 text-left w-24 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Project</th>
+                <th className="p-3 text-left w-24 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Team</th>
+                <th className="p-3 text-left w-24 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Group</th>
                 <th className="p-3 text-left w-24 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Seat</th>
+                <th className="p-3 text-left w-32 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Phone</th>
+                <th className="p-3 text-left w-48 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Email</th>
+                <th className="p-3 text-left w-64 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Address</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -1616,12 +1626,28 @@ function ConfigurationTab({ users, onUpdateUsers }: { users: User[], onUpdateUse
                     <td className="p-3 border-r border-slate-50">
                       <input 
                         type="text" 
+                        value={user.team} 
+                        onChange={(e) => handleInputChange(user.originalIndex, 'team', e.target.value)}
+                        className="w-full bg-transparent border-none focus:ring-0 text-[12px] font-bold uppercase p-0 text-slate-700"
+                      />
+                    </td>
+                    <td className="p-3 border-r border-slate-50">
+                      <input 
+                        type="text" 
+                        value={user.group || ''} 
+                        onChange={(e) => handleInputChange(user.originalIndex, 'group', e.target.value)}
+                        className="w-full bg-transparent border-none focus:ring-0 text-[12px] font-bold uppercase p-0 text-slate-500"
+                      />
+                    </td>
+                    <td className="p-3 border-r border-slate-50">
+                      <input 
+                        type="text" 
                         value={user.role} 
                         onChange={(e) => handleInputChange(user.originalIndex, 'role', e.target.value)}
                         className="w-full bg-transparent border-none focus:ring-0 text-[12px] font-bold uppercase p-0 text-slate-500"
                       />
                     </td>
-                    <td className="p-3">
+                    <td className="p-3 border-r border-slate-50">
                       <input 
                         type="text" 
                         value={user.assignedSeat || ''} 
@@ -1629,6 +1655,30 @@ function ConfigurationTab({ users, onUpdateUsers }: { users: User[], onUpdateUse
                         placeholder="-"
                         className="w-full bg-transparent border-none focus:ring-0 text-[12px] font-black uppercase p-0"
                         style={{ color: projectColor }}
+                      />
+                    </td>
+                    <td className="p-3 border-r border-slate-50">
+                      <input 
+                        type="text" 
+                        value={user.phone || ''} 
+                        onChange={(e) => handleInputChange(user.originalIndex, 'phone', e.target.value)}
+                        className="w-full bg-transparent border-none focus:ring-0 text-[12px] p-0 text-slate-600"
+                      />
+                    </td>
+                    <td className="p-3 border-r border-slate-50">
+                      <input 
+                        type="text" 
+                        value={user.email || ''} 
+                        onChange={(e) => handleInputChange(user.originalIndex, 'email', e.target.value)}
+                        className="w-full bg-transparent border-none focus:ring-0 text-[12px] p-0 text-slate-600"
+                      />
+                    </td>
+                    <td className="p-3">
+                      <input 
+                        type="text" 
+                        value={user.address || ''} 
+                        onChange={(e) => handleInputChange(user.originalIndex, 'address', e.target.value)}
+                        className="w-full bg-transparent border-none focus:ring-0 text-[12px] p-0 text-slate-600"
                       />
                     </td>
                   </tr>

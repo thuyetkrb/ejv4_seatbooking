@@ -794,15 +794,38 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
                 );
               })}
             </tbody>
-            <tfoot className="bg-slate-50 border-t-2 border-slate-200">
+            <tfoot className="bg-indigo-50 border-t-2 border-slate-200">
               {/* WFH Summary */}
               <tr>
-                <td colSpan={4} className="p-1 text-[11px] font-bold text-blue-600 text-right pr-4 sticky left-0 bg-slate-50 z-10 border-r border-slate-200">Total WFH</td>
+                <td colSpan={4} className="p-1 text-[11px] font-bold text-blue-600 text-right pr-4 sticky left-0 bg-indigo-50 z-10 border-r border-slate-200">Total WFH</td>
                 {days.map(day => {
                   const dateStr = formatDate(day);
+                  const isToday = isSameDay(day, new Date());
                   const count = attendance.filter((r: AttendanceRecord) => r.date === dateStr && r.mode === 'WFH').length;
                   return (
-                    <td key={day.toString()} className={cn("p-0.5 text-center text-[12px] font-black text-blue-600 border-r border-slate-100", isWeekend(day) ? "bg-slate-200" : "")}>
+                    <td key={day.toString()} className={cn(
+                      "p-0.5 text-center text-[12px] font-black text-blue-600 border-r border-slate-100", 
+                      isWeekend(day) ? "bg-slate-200" : "",
+                      isToday ? "bg-rose-50" : ""
+                    )}>
+                      {count > 0 ? count : ''}
+                    </td>
+                  );
+                })}
+              </tr>
+              {/* Leave Summary */}
+              <tr>
+                <td colSpan={4} className="p-1 text-[11px] font-bold text-rose-400 text-right pr-4 sticky left-0 bg-indigo-50 z-10 border-r border-slate-200">Total Leave</td>
+                {days.map(day => {
+                  const dateStr = formatDate(day);
+                  const isToday = isSameDay(day, new Date());
+                  const count = attendance.filter((r: AttendanceRecord) => r.date === dateStr && r.mode === 'LEAVE').length;
+                  return (
+                    <td key={day.toString()} className={cn(
+                      "p-0.5 text-center text-[12px] font-black text-rose-400 border-r border-slate-100", 
+                      isWeekend(day) ? "bg-slate-200" : "",
+                      isToday ? "bg-rose-50" : ""
+                    )}>
                       {count > 0 ? count : ''}
                     </td>
                   );
@@ -810,14 +833,14 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
               </tr>
               {/* Occupied Summary */}
               <tr>
-                <td colSpan={4} className="p-1 text-[11px] font-bold text-emerald-600 text-right pr-4 sticky left-0 bg-slate-50 z-10 border-r border-slate-200">Occupied Seats</td>
+                <td colSpan={4} className="p-1 text-[11px] font-bold text-red-900 text-right pr-4 sticky left-0 bg-indigo-50 z-10 border-r border-slate-200">Occupied Seats</td>
                 {days.map(day => {
                   const dateStr = formatDate(day);
                   const isToday = isSameDay(day, new Date());
                   const count = attendance.filter((r: AttendanceRecord) => r.date === dateStr && r.mode === 'WFO' && r.seatCode).length;
                   return (
                     <td key={day.toString()} className={cn(
-                      "p-0.5 text-center text-[12px] font-black text-emerald-600 border-r border-slate-100", 
+                      "p-0.5 text-center text-[12px] font-black text-red-900 border-r border-slate-100", 
                       isWeekend(day) ? "bg-slate-200" : "",
                       isToday ? "bg-rose-50" : ""
                     )}>
@@ -828,7 +851,7 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
               </tr>
               {/* Available Summary */}
               <tr>
-                <td colSpan={4} className="p-1 text-[11px] font-bold text-slate-600 text-right pr-4 sticky left-0 bg-slate-50 z-10 border-r border-slate-200">Available Seats</td>
+                <td colSpan={4} className="p-1 text-[11px] font-bold text-blue-900 text-right pr-4 sticky left-0 bg-indigo-50 z-10 border-r border-slate-200">Available Seats</td>
                 {days.map(day => {
                   const dateStr = formatDate(day);
                   const isToday = isSameDay(day, new Date());
@@ -841,7 +864,7 @@ function TimelineTab({ users, attendance, currentMonthDate, setCurrentMonthDate,
                   const count = totalNormalSeats - occupiedNormalCount;
                   return (
                     <td key={day.toString()} className={cn(
-                      "p-0.5 text-center text-[12px] font-black text-slate-500 border-r border-slate-100", 
+                      "p-0.5 text-center text-[12px] font-black text-blue-900 border-r border-slate-100", 
                       isWeekend(day) ? "bg-slate-200" : "",
                       isToday ? "bg-rose-50" : ""
                     )}>
@@ -1078,9 +1101,23 @@ function LayoutTab({ seats, attendance, users }: any) {
     <div className="space-y-6">
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col lg:flex-row items-center justify-between gap-4">
         <div className="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto">
-          <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl w-full sm:w-auto justify-between sm:justify-start">
+          <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl w-full sm:w-auto justify-between sm:justify-start relative">
             <button onClick={() => setSelectedDate(subDays(selectedDate, 1))} className="p-1.5 hover:bg-white rounded-lg transition-all"><ChevronLeft size={18} /></button>
-            <span className="px-4 text-sm font-bold">{formatDisplayDate(selectedDate)}</span>
+            <div className="relative flex items-center">
+              <span className="px-4 text-sm font-bold cursor-pointer hover:text-emerald-600 transition-colors flex items-center gap-2">
+                {formatDisplayDate(selectedDate)}
+                <CalendarIcon size={14} className="text-slate-400" />
+              </span>
+              <input 
+                type="date" 
+                className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                value={format(selectedDate, 'yyyy-MM-dd')}
+                onChange={(e) => {
+                  const newDate = e.target.value ? parseISO(e.target.value) : new Date();
+                  setSelectedDate(newDate);
+                }}
+              />
+            </div>
             <button onClick={() => setSelectedDate(addDays(selectedDate, 1))} className="p-1.5 hover:bg-white rounded-lg transition-all"><ChevronRight size={18} /></button>
           </div>
           
@@ -1127,7 +1164,10 @@ function LayoutTab({ seats, attendance, users }: any) {
             const record = dayAttendance.find((r: AttendanceRecord) => r.seatCode === seat.seatCode);
             const user = record ? users.find((u: User) => u.userId === record.userId) : null;
             
-            if (viewMode === 'available' && user) return null;
+            const isAvailableMode = viewMode === 'available';
+            const isOccupied = !!user;
+            const isDimmed = isAvailableMode && isOccupied;
+            const isHighlighted = isAvailableMode && !isOccupied;
 
             // Determine if it's a special seat (EPS, ETA, X)
             const isSpecial = ['EPS', 'ETA', 'X'].includes(seat.zone);
@@ -1149,11 +1189,13 @@ function LayoutTab({ seats, attendance, users }: any) {
                 }}
                 className={cn(
                   "aspect-square rounded border flex flex-col items-center justify-center p-0.5 transition-all cursor-pointer relative group",
-                  user 
+                  isOccupied 
                     ? "border-slate-400 shadow-md scale-105 z-10" 
                     : isSpecial 
                       ? "border-slate-900"
-                      : "border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50"
+                      : "border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50",
+                  isDimmed && "opacity-20 grayscale pointer-events-none scale-95 z-0",
+                  isHighlighted && "ring-2 ring-emerald-500 ring-offset-2 scale-110 z-20 shadow-lg"
                 )}
               >
                 <span className={cn(
